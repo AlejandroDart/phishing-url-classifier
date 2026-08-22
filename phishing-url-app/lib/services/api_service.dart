@@ -2,12 +2,20 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
+import 'preferences_service.dart';
+
 /// ===============================
 /// CONFIG API
 /// ===============================
 class ApiConfig {
-  static const String baseUrl = 'http://192.168.100.5:5000';
-  static const String apiKey = 'aB7!xZ9\$ePqT3@rWuLfC%12yJkNvQdX5';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://10.26.146.209:5000',
+  );
+  static const String apiKey = String.fromEnvironment(
+    'API_KEY',
+    defaultValue: '',
+  );
 }
 
 /// ===============================
@@ -54,9 +62,16 @@ DateTime? parseToDateTime(dynamic value) {
 /// ===============================
 Future<Map<String, dynamic>> predictPhishing(String url) async {
   const apiUrl = '${ApiConfig.baseUrl}/predict';
+  final globalStorageEnabled =
+      await PreferencesService().getGlobalStorageEnabled();
+  final selectedModelId = await PreferencesService().getSelectedModelId();
+  final sensitivityProfile = await PreferencesService().getSensitivityProfile();
 
-  final Map<String, String> body = {
+  final Map<String, dynamic> body = {
     'url': url,
+    'store_global': globalStorageEnabled,
+    'model_id': selectedModelId,
+    'sensitivity_profile': sensitivityProfile.apiValue,
   };
 
   try {
@@ -73,8 +88,20 @@ Future<Map<String, dynamic>> predictPhishing(String url) async {
       final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
 
       return {
+        'url': (jsonResponse['url'] ?? url).toString(),
         'label': (jsonResponse['label'] ?? '').toString(),
         'probability': parseToDouble(jsonResponse['probability']),
+        'explanation': jsonResponse['explanation'],
+        'stored_global': jsonResponse['stored_global'] == true,
+        'model_id': (jsonResponse['model_id'] ?? selectedModelId).toString(),
+        'model_name':
+            (jsonResponse['model_name'] ?? selectedModelId).toString(),
+        'sensitivity_profile':
+            (jsonResponse['sensitivity_profile'] ?? sensitivityProfile.apiValue)
+                .toString(),
+        'base_threshold': parseToDouble(jsonResponse['base_threshold']),
+        'effective_threshold':
+            parseToDouble(jsonResponse['effective_threshold']),
       };
     } else {
       final dynamic rawBody = response.body;
@@ -85,6 +112,133 @@ Future<Map<String, dynamic>> predictPhishing(String url) async {
   } catch (e) {
     return {'error': 'Error de conexión: $e'};
   }
+}
+
+Future<Map<String, dynamic>?> explainStoredFeatures(
+  Map<String, dynamic> features,
+  double expectedProbability,
+  String? modelId,
+) async {
+  try {
+    final response = await http
+        .post(
+          Uri.parse('${ApiConfig.baseUrl}/explain-features'),
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-KEY': ApiConfig.apiKey,
+          },
+          body: jsonEncode({
+            'features': features,
+            if (modelId != null) 'model_id': modelId,
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode != 200) return null;
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) return null;
+    final rebuiltProbability = parseToDouble(decoded['probability']);
+    if ((rebuiltProbability - expectedProbability).abs() > 0.000001) {
+      return null;
+    }
+    final shap = decoded['shap'];
+    return shap is Map<String, dynamic> ? shap : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// ===============================
+/// CHATBOT RAG
+/// ===============================
+class ChatbotReply {
+  final String answer;
+  final List<String> sources;
+  final String? model;
+  final String? interactionId;
+  final String? intent;
+  final String? generationMode;
+  final Map<String, dynamic>? analysis;
+  final Map<String, dynamic>? decision;
+  final Map<String, dynamic>? action;
+
+  const ChatbotReply({
+    required this.answer,
+    required this.sources,
+    this.model,
+    this.interactionId,
+    this.intent,
+    this.generationMode,
+    this.analysis,
+    this.decision,
+    this.action,
+  });
+}
+
+Future<ChatbotReply> askChatbot(
+  String question, {
+  List<Map<String, String>> history = const [],
+  String? conversationId,
+}) async {
+  final globalStorageEnabled =
+      await PreferencesService().getGlobalStorageEnabled();
+  final selectedModelId = await PreferencesService().getSelectedModelId();
+  final sensitivityProfile = await PreferencesService().getSensitivityProfile();
+  final response = await http
+      .post(
+        Uri.parse('${ApiConfig.baseUrl}/chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-KEY': ApiConfig.apiKey,
+        },
+        body: jsonEncode({
+          'question': question,
+          'history': history,
+          if (conversationId != null) 'conversation_id': conversationId,
+          'store_global': globalStorageEnabled,
+          'model_id': selectedModelId,
+          'sensitivity_profile': sensitivityProfile.apiValue,
+        }),
+      )
+      .timeout(const Duration(seconds: 130));
+
+  final decodedBody = utf8.decode(response.bodyBytes);
+  final dynamic decoded = decodedBody.isEmpty ? null : jsonDecode(decodedBody);
+  final data = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+
+  if (response.statusCode != 200) {
+    throw Exception(
+      (data['error'] ?? 'No fue posible consultar el asistente').toString(),
+    );
+  }
+
+  final answer = (data['answer'] ?? '').toString().trim();
+  if (answer.isEmpty) {
+    throw Exception('El asistente devolvió una respuesta vacía');
+  }
+
+  final rawSources = data['sources'];
+  final sources = rawSources is List
+      ? rawSources.map((source) => source.toString()).toList()
+      : <String>[];
+
+  return ChatbotReply(
+    answer: answer,
+    sources: sources,
+    model: data['model']?.toString(),
+    interactionId: data['interaction_id']?.toString(),
+    intent: data['intent']?.toString(),
+    generationMode: data['generation_mode']?.toString(),
+    analysis: data['analysis'] is Map<String, dynamic>
+        ? data['analysis'] as Map<String, dynamic>
+        : null,
+    decision: data['decision'] is Map<String, dynamic>
+        ? data['decision'] as Map<String, dynamic>
+        : null,
+    action: data['action'] is Map<String, dynamic>
+        ? data['action'] as Map<String, dynamic>
+        : null,
+  );
 }
 
 /// ===============================
@@ -109,20 +263,54 @@ class RecentPrediction {
   final String label;
   final double probability;
   final DateTime? createdAt;
+  final Map<String, dynamic>? explanation;
+  final String modelId;
+  final String modelName;
+  final String sensitivityProfile;
+  final double baseThreshold;
+  final double effectiveThreshold;
 
   RecentPrediction({
     required this.url,
     required this.label,
     required this.probability,
     required this.createdAt,
+    this.explanation,
+    required this.modelId,
+    required this.modelName,
+    required this.sensitivityProfile,
+    required this.baseThreshold,
+    required this.effectiveThreshold,
   });
 
   factory RecentPrediction.fromJson(Map<String, dynamic> json) {
+    final explanation = json['explanation'] is Map<String, dynamic>
+        ? json['explanation'] as Map<String, dynamic>
+        : null;
+    final rawModel = explanation?['model'];
+    final model = rawModel is Map ? rawModel : const {};
     return RecentPrediction(
       url: (json['url'] ?? '').toString(),
       label: (json['label'] ?? '').toString(),
       probability: parseToDouble(json['probability']),
       createdAt: parseToDateTime(json['created_at']),
+      explanation: explanation,
+      modelId: (json['model_id'] ?? 'random_forest').toString(),
+      modelName: (model['name'] ?? json['model_id'] ?? 'Random Forest Top 25')
+          .toString(),
+      sensitivityProfile: (json['sensitivity_profile'] ??
+              model['sensitivity_profile'] ??
+              'balanced')
+          .toString(),
+      baseThreshold: parseToDouble(
+        json['base_threshold'] ?? model['base_threshold'] ?? 0.5,
+      ),
+      effectiveThreshold: parseToDouble(
+        json['effective_threshold'] ??
+            model['effective_threshold'] ??
+            model['threshold'] ??
+            0.5,
+      ),
     );
   }
 }

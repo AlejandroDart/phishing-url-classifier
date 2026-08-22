@@ -59,7 +59,7 @@ class NetworkDiagnosticService {
           scheme: baseUri.scheme.toUpperCase(),
           endpoint: '/stats/count',
           latencyMs: stopwatch.elapsedMilliseconds,
-          message: 'Conexión exitosa con el backend',
+          message: 'Conexión exitosa',
         );
       }
 
@@ -91,7 +91,7 @@ class NetworkDiagnosticService {
             : (baseUri.scheme == 'https' ? '443' : '80'),
         scheme: baseUri.scheme.toUpperCase(),
         endpoint: '/stats/count',
-        message: 'El servidor tardó demasiado en responder',
+        message: 'Tiempo agotado',
       );
     } catch (e) {
       stopwatch.stop();
@@ -104,7 +104,7 @@ class NetworkDiagnosticService {
             : (baseUri.scheme == 'https' ? '443' : '80'),
         scheme: baseUri.scheme.toUpperCase(),
         endpoint: '/stats/count',
-        message: 'Error de conexión: $e',
+        message: 'Error de conexión',
       );
     }
   }

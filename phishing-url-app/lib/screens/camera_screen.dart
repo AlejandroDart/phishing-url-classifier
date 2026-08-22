@@ -7,6 +7,8 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image/image.dart' as img;
 
 import '../services/camera_service.dart';
+import '../services/ocr_url_extractor.dart';
+import '../theme/app_design.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -16,7 +18,7 @@ class CameraScreen extends StatefulWidget {
 }
 
 class _CameraScreenState extends State<CameraScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? controller;
   final TextRecognizer textRecognizer = TextRecognizer();
 
@@ -26,23 +28,29 @@ class _CameraScreenState extends State<CameraScreen>
   ScaffoldMessengerState? _messenger;
 
   bool isProcessing = false;
-
-  final double scanWidth = 320;
-  final double scanHeight = 120;
+  bool _isInitializing = false;
+  String? _cameraError;
 
   final GlobalKey _cameraLayoutKey = GlobalKey();
   final GlobalKey _scanAreaKey = GlobalKey();
 
-  final RegExp urlRegex = RegExp(
-    r"\bhttps?:\/\/[A-Za-z0-9\-._~:/?#\[\]@!$&'()*+,;=%]+",
-    caseSensitive: false,
-  );
-
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initButtonAnimation();
     initCamera();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused) {
+      controller?.dispose();
+      controller = null;
+    } else if (state == AppLifecycleState.resumed && controller == null) {
+      initCamera();
+    }
   }
 
   @override
@@ -94,17 +102,34 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> initCamera() async {
+    if (_isInitializing) return;
+    _isInitializing = true;
+    if (mounted) setState(() => _cameraError = null);
     try {
       final cameras = await availableCameras();
-      final camera = cameras.first;
+      if (cameras.isEmpty) {
+        throw CameraException('no_camera', 'No camera available');
+      }
+      final camera = cameras.firstWhere(
+        (item) => item.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
 
       controller = CameraController(
         camera,
         ResolutionPreset.high,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
       await controller!.initialize();
+      try {
+        await controller!.setFlashMode(FlashMode.off);
+        await controller!.setFocusMode(FocusMode.auto);
+        await controller!.setExposureMode(ExposureMode.auto);
+      } catch (_) {
+        // Camera drivers may omit manual focus or exposure controls.
+      }
 
       if (mounted) {
         setState(() {});
@@ -112,50 +137,12 @@ class _CameraScreenState extends State<CameraScreen>
     } catch (e) {
       debugPrint('Error inicializando cámara: $e');
       _showSnackBar('No se pudo inicializar la cámara');
-    }
-  }
-
-  String normalizeUrl(String url) {
-    url = url.trim();
-
-    url = url.replaceAll(RegExp(r'\s+'), '');
-    url = url.replaceAll('http//', 'http://');
-    url = url.replaceAll('https//', 'https://');
-    url = url.replaceAll(RegExp(r'https:\/\/+'), 'https://');
-    url = url.replaceAll(RegExp(r'http:\/\/+'), 'http://');
-    url = url.replaceAll(RegExp(r'[.,;:)\]}]+$'), '');
-
-    return url;
-  }
-
-  bool isValidHttpUrl(String value) {
-    final uri = Uri.tryParse(value);
-    if (uri == null) return false;
-
-    return (uri.scheme == 'http' || uri.scheme == 'https') &&
-        uri.host.isNotEmpty;
-  }
-
-  String? extractUrlFromText(String rawText) {
-    final candidates = <String>{
-      rawText,
-      rawText.replaceAll('\n', ' '),
-      rawText.replaceAll(RegExp(r'\s+'), ''),
-    };
-
-    for (final text in candidates) {
-      final matches = urlRegex.allMatches(text);
-
-      for (final match in matches) {
-        final detected = normalizeUrl(match.group(0)!);
-
-        if (isValidHttpUrl(detected)) {
-          return detected;
-        }
+      if (mounted) {
+        setState(() => _cameraError = 'No se pudo acceder a la cámara');
       }
+    } finally {
+      _isInitializing = false;
     }
-
-    return null;
   }
 
   Future<File?> cropImageToScanArea(File originalFile) async {
@@ -256,17 +243,20 @@ class _CameraScreenState extends State<CameraScreen>
 
     _pulseController.stop();
 
+    File? imageFile;
+    File? croppedFile;
     try {
       final XFile picture = await controller!.takePicture();
-      final File imageFile = File(picture.path);
+      imageFile = File(picture.path);
 
-      final croppedFile = await cropImageToScanArea(imageFile);
-      final fileToScan = croppedFile ?? imageFile;
-
-      final inputImage = InputImage.fromFile(fileToScan);
-      final recognizedText = await textRecognizer.processImage(inputImage);
-
-      final detectedUrl = extractUrlFromText(recognizedText.text);
+      croppedFile = await cropImageToScanArea(imageFile);
+      String? detectedUrl;
+      for (final file in <File?>[croppedFile, imageFile]) {
+        if (file == null || detectedUrl != null) continue;
+        final inputImage = InputImage.fromFile(file);
+        final recognizedText = await textRecognizer.processImage(inputImage);
+        detectedUrl = OcrUrlExtractor.extract(recognizedText.text);
+      }
 
       if (detectedUrl != null) {
         _clearSnackBars();
@@ -282,6 +272,12 @@ class _CameraScreenState extends State<CameraScreen>
       debugPrint('Error OCR: $e');
       _showSnackBar('Ocurrió un error al analizar la imagen');
     } finally {
+      for (final file in <File?>[croppedFile, imageFile]) {
+        if (file == null) continue;
+        try {
+          if (await file.exists()) await file.delete();
+        } catch (_) {}
+      }
       if (mounted) {
         setState(() {
           isProcessing = false;
@@ -302,6 +298,7 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   void dispose() {
     _clearSnackBars();
+    WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
     textRecognizer.close();
     _pulseController.dispose();
@@ -344,13 +341,50 @@ class _CameraScreenState extends State<CameraScreen>
   @override
   Widget build(BuildContext context) {
     if (controller == null || !controller!.value.isInitialized) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
-          child: CircularProgressIndicator(),
+          child: _cameraError == null
+              ? const CircularProgressIndicator()
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.no_photography_outlined,
+                      color: Colors.white70,
+                      size: 42,
+                    ),
+                    const SizedBox(height: AppDesign.gapRegular),
+                    Text(
+                      _cameraError!,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    const SizedBox(height: AppDesign.gapRegular),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: 'Volver',
+                          onPressed: _closeCamera,
+                          icon: const Icon(Icons.close, color: Colors.white),
+                        ),
+                        const SizedBox(width: AppDesign.gapRegular),
+                        IconButton(
+                          tooltip: 'Reintentar',
+                          onPressed: initCamera,
+                          icon: const Icon(Icons.refresh, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
         ),
       );
     }
+
+    final scanWidth =
+        (MediaQuery.sizeOf(context).width - (AppDesign.gapSection * 2))
+            .clamp(240.0, AppDesign.cameraFrameMaxWidth);
 
     return PopScope(
       canPop: false,
@@ -370,7 +404,7 @@ class _CameraScreenState extends State<CameraScreen>
               child: CustomPaint(
                 painter: ScannerOverlayPainter(
                   scanWidth: scanWidth,
-                  scanHeight: scanHeight,
+                  scanHeight: AppDesign.cameraFrameHeight,
                 ),
               ),
             ),
@@ -378,13 +412,15 @@ class _CameraScreenState extends State<CameraScreen>
               child: Container(
                 key: _scanAreaKey,
                 width: scanWidth,
-                height: scanHeight,
+                height: AppDesign.cameraFrameHeight,
                 decoration: BoxDecoration(
                   border: Border.all(
                     color: Colors.greenAccent,
                     width: 3,
                   ),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(
+                    AppDesign.radiusControl,
+                  ),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.greenAccent.withValues(alpha: 0.45),
@@ -418,8 +454,12 @@ class _CameraScreenState extends State<CameraScreen>
                     onTap: isProcessing ? null : captureAndScan,
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      width: isProcessing ? 74 : 82,
-                      height: isProcessing ? 74 : 82,
+                      width: isProcessing
+                          ? AppDesign.cameraCaptureBusySize
+                          : AppDesign.cameraCaptureSize,
+                      height: isProcessing
+                          ? AppDesign.cameraCaptureBusySize
+                          : AppDesign.cameraCaptureSize,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.green,
@@ -489,7 +529,10 @@ class ScannerOverlayPainter extends CustomPainter {
 
     final holePath = Path()
       ..addRRect(
-        RRect.fromRectAndRadius(holeRect, const Radius.circular(16)),
+        RRect.fromRectAndRadius(
+          holeRect,
+          const Radius.circular(AppDesign.radiusControl),
+        ),
       );
 
     final finalPath = Path.combine(

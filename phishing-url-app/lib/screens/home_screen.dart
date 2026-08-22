@@ -1,11 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:percent_indicator/linear_percent_indicator.dart';
+
+import '../theme/app_design.dart';
+import '../widgets/app_content_width.dart';
+import '../widgets/robot_rain_overlay.dart';
 import 'package:vibration/vibration.dart';
 
 import '../services/api_service.dart';
 import '../services/camera_service.dart';
+import '../models/local_prediction.dart';
+import '../services/local_prediction_repository.dart';
 import '../utils/phishing_utils.dart';
 import '../services/preferences_service.dart';
 
@@ -30,26 +37,39 @@ class MyHomePage extends StatefulWidget {
   final ValueChanged<int> onNavigate;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MyHomePage> createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class MyHomePageState extends State<MyHomePage> {
   double _scanProgress = 0.0;
+  final ValueNotifier<double> _scanProgressRender = ValueNotifier<double>(0);
   Timer? _scanTimer;
+
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _urlInputSectionKey = GlobalKey();
+
+  bool _userMovedScroll = false;
+  bool _autoScrollEnabledForCurrentScan = true;
+  final GlobalKey _consoleSectionKey = GlobalKey();
 
   String _detectedURL = '';
   final TextEditingController _urlTextField = TextEditingController();
+  final TextEditingController _chatbotTextController = TextEditingController();
   final CameraUrlService _cameraUrlService = CameraUrlService();
   final FocusNode _focusNode = FocusNode();
 
   final PreferencesService _preferencesService = PreferencesService();
+  final LocalPredictionRepository _localPredictionRepository =
+      LocalPredictionRepository();
   bool _hapticAlertsEnabled = false;
 
   bool _isPressedIA = false;
   bool _isPressedCamera = false;
   bool _isLoading = false;
+  Offset? _chatbotPosition;
 
   final List<String> _consoleVisibleLines = [];
+  final ValueNotifier<int> _consoleRenderVersion = ValueNotifier<int>(0);
   List<String> _consoleTargetLines = [];
   Timer? _consoleTypingTimer;
   int _consoleTypingLineIndex = 0;
@@ -65,10 +85,77 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   void dispose() {
     _scanTimer?.cancel();
+    _scanProgressRender.dispose();
     _consoleTypingTimer?.cancel();
+    _consoleRenderVersion.dispose();
     _urlTextField.dispose();
+    _chatbotTextController.dispose();
     _focusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void setSharedText(String sharedText) {
+    final match = RegExp(
+      r'https?://[^\s]+',
+      caseSensitive: false,
+    ).firstMatch(sharedText);
+    if (match == null) return;
+
+    final sharedUrl =
+        match.group(0)!.replaceFirst(RegExp(r'[\]\[(){}<>,.;!?]+$'), '');
+
+    FocusManager.instance.primaryFocus?.unfocus();
+    _focusNode.unfocus();
+
+    setState(() {
+      _detectedURL = sharedUrl;
+      _urlTextField.value = TextEditingValue(
+        text: sharedUrl,
+        selection: const TextSelection.collapsed(offset: 0),
+      );
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await Future<void>.delayed(const Duration(milliseconds: 220));
+      if (!mounted) return;
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      _focusNode.unfocus();
+
+      final inputContext = _urlInputSectionKey.currentContext;
+      if (inputContext == null || !inputContext.mounted) return;
+      await Scrollable.ensureVisible(
+        inputContext,
+        alignment: 0.06,
+        duration: const Duration(milliseconds: 380),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _scrollToConsoleIfAllowed() {
+    if (!_autoScrollEnabledForCurrentScan || _userMovedScroll) return;
+    if (!_scrollController.hasClients) return;
+
+    final context = _consoleSectionKey.currentContext;
+    if (context == null) return;
+
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox) return;
+
+    final boxOffset = renderObject.localToGlobal(Offset.zero);
+
+    final targetOffset = (_scrollController.offset + boxOffset.dy + 20).clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    );
+
+    _scrollController.animateTo(
+      targetOffset,
+      duration: const Duration(milliseconds: 850),
+      curve: Curves.easeInOutCubic,
+    );
   }
 
   void _dismissKeyboard() {
@@ -89,10 +176,7 @@ class _MyHomePageState extends State<MyHomePage> {
     scaffoldMessenger.showSnackBar(
       SnackBar(
         duration: duration,
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-        ),
+        content: Text(message, textAlign: TextAlign.center),
       ),
     );
   }
@@ -107,14 +191,9 @@ class _MyHomePageState extends State<MyHomePage> {
           '> Esperando URL...',
         ];
       case 1:
-        return [
-          '> Iniciando análisis...',
-        ];
+        return ['> Iniciando análisis...'];
       case 2:
-        return [
-          '> Iniciando análisis...',
-          '> Extrayendo features...',
-        ];
+        return ['> Iniciando análisis...', '> Extrayendo features...'];
       case 3:
         return [
           '> Iniciando análisis...',
@@ -126,6 +205,7 @@ class _MyHomePageState extends State<MyHomePage> {
           '> Iniciando análisis...',
           '> Extrayendo features...',
           '> Realizando predicción...',
+          '> Interpretando IA (SHAP)...',
           '> Proceso finalizado.',
         ];
       default:
@@ -184,7 +264,7 @@ class _MyHomePageState extends State<MyHomePage> {
         ..add('');
       _consoleTypingLineIndex = 0;
 
-      if (mounted) setState(() {});
+      _consoleRenderVersion.value++;
       _startConsoleTyping();
       return;
     }
@@ -197,7 +277,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _consoleVisibleLines.add('');
     }
 
-    if (mounted) setState(() {});
+    _consoleRenderVersion.value++;
     _startConsoleTyping();
   }
 
@@ -217,7 +297,7 @@ class _MyHomePageState extends State<MyHomePage> {
   void _startConsoleTyping() {
     _consoleTypingTimer?.cancel();
 
-    _consoleTypingTimer = Timer.periodic(const Duration(milliseconds: 20), (
+    _consoleTypingTimer = Timer.periodic(const Duration(milliseconds: 32), (
       timer,
     ) {
       if (!mounted) {
@@ -238,12 +318,12 @@ class _MyHomePageState extends State<MyHomePage> {
       final currentLine = _consoleVisibleLines[_consoleTypingLineIndex];
 
       if (currentLine.length < targetLine.length) {
-        setState(() {
-          _consoleVisibleLines[_consoleTypingLineIndex] = targetLine.substring(
-            0,
-            currentLine.length + 1,
-          );
-        });
+        final nextLength = math.min(currentLine.length + 2, targetLine.length);
+        _consoleVisibleLines[_consoleTypingLineIndex] = targetLine.substring(
+          0,
+          nextLength,
+        );
+        _consoleRenderVersion.value++;
         return;
       }
 
@@ -262,6 +342,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void startScanAnimation() {
     _scanProgress = 0.0;
+    _scanProgressRender.value = 0.0;
     _setConsolePhase(1, forceRestart: true);
 
     _scanTimer?.cancel();
@@ -274,9 +355,8 @@ class _MyHomePageState extends State<MyHomePage> {
 
       if (_scanProgress >= 0.9) return;
 
-      setState(() {
-        _scanProgress = (_scanProgress + 0.015).clamp(0.0, 0.9);
-      });
+      _scanProgress = (_scanProgress + 0.015).clamp(0.0, 0.9);
+      _scanProgressRender.value = _scanProgress;
 
       if (_scanProgress >= 0.75) {
         _setConsolePhase(3);
@@ -300,6 +380,7 @@ class _MyHomePageState extends State<MyHomePage> {
         _isLoading = false;
         _scanProgress = 0.0;
       });
+      _scanProgressRender.value = 0.0;
 
       _setConsolePhase(0);
       _showSnack('Ingresa una URL o utiliza la cámara.');
@@ -309,6 +390,8 @@ class _MyHomePageState extends State<MyHomePage> {
     setState(() {
       _isPressedIA = true;
       _isLoading = true;
+      _userMovedScroll = false;
+      _autoScrollEnabledForCurrentScan = true;
     });
 
     startScanAnimation();
@@ -335,6 +418,7 @@ class _MyHomePageState extends State<MyHomePage> {
           globalColor = _dangerColor(isDark);
           _scanProgress = 0.0;
         });
+        _scanProgressRender.value = 0.0;
 
         _setConsolePhase(0);
         _showSnack(label);
@@ -342,14 +426,59 @@ class _MyHomePageState extends State<MyHomePage> {
         setState(() {
           label = result['label'];
           globalPercentage = result['probability'];
-          globalColor = getIconColorMessageForPercentage(globalPercentage)[1];
+          final isPhishing = label == 'phishing';
+          final profile =
+              (result['sensitivity_profile'] ?? 'balanced').toString();
+          final profileLabel = switch (profile) {
+            'aggressive' => 'Agresivo',
+            'passive' => 'Pasivo',
+            _ => 'Equilibrado',
+          };
+          final threshold =
+              ((result['effective_threshold'] ?? 0.5) as num).toDouble();
+          globalColor = isPhishing
+              ? _dangerColor(isDark)
+              : const Color.fromRGBO(67, 212, 165, 1.0);
           globalTitleMessage =
-              getIconColorMessageForPercentage(globalPercentage)[2];
-          globalMessage = getIconColorMessageForPercentage(globalPercentage)[3];
+              isPhishing ? 'PHISHING DETECTADO' : 'NO PHISHING';
+          globalMessage =
+              'Probabilidad ${(globalPercentage * 100).toStringAsFixed(1)}% · '
+              'Perfil $profileLabel · Umbral ${(threshold * 100).toStringAsFixed(1)}%.';
           _scanProgress = 1.0;
         });
+        _scanProgressRender.value = 1.0;
 
         _setConsolePhase(4);
+
+        try {
+          await _localPredictionRepository.insertPrediction(
+            LocalPrediction(
+              url: trimmedUrl,
+              label: label,
+              probability: globalPercentage,
+              explanation: jsonEncode(result['explanation']),
+              modelId: (result['model_id'] ?? 'random_forest').toString(),
+              modelName:
+                  (result['model_name'] ?? 'Random Forest Top 25').toString(),
+              sensitivityProfile:
+                  (result['sensitivity_profile'] ?? 'balanced').toString(),
+              baseThreshold:
+                  ((result['base_threshold'] ?? 0.5) as num).toDouble(),
+              effectiveThreshold:
+                  ((result['effective_threshold'] ?? 0.5) as num).toDouble(),
+              createdAt: DateTime.now(),
+            ),
+          );
+        } catch (_) {
+          _showSnack(
+            'El an\u00e1lisis termin\u00f3, pero no pudo guardarse en el historial local.',
+          );
+        }
+
+        Future.delayed(const Duration(milliseconds: 450), () {
+          if (!mounted) return;
+          _scrollToConsoleIfAllowed();
+        });
       }
     } catch (e) {
       _scanTimer?.cancel();
@@ -361,6 +490,7 @@ class _MyHomePageState extends State<MyHomePage> {
         globalColor = _dangerColor(isDark);
         _scanProgress = 0.0;
       });
+      _scanProgressRender.value = 0.0;
 
       _setConsolePhase(0);
       _showSnack('Error al analizar la URL: $e');
@@ -372,15 +502,15 @@ class _MyHomePageState extends State<MyHomePage> {
       }
 
       _dismissKeyboard();
-      methodAlert(globalPercentage);
+      methodAlert(label == 'phishing');
     }
   }
 
-  Future<void> methodAlert(double globalPercentage) async {
+  Future<void> methodAlert(bool isPhishing) async {
     try {
       if (!_hapticAlertsEnabled) return;
 
-      if (globalPercentage > 0.5 && await Vibration.hasVibrator()) {
+      if (isPhishing && await Vibration.hasVibrator()) {
         Future.delayed(const Duration(milliseconds: 200), () async {
           final hasAmplitude = await Vibration.hasAmplitudeControl();
           final hasCustom = await Vibration.hasCustomVibrationsSupport();
@@ -453,16 +583,16 @@ class _MyHomePageState extends State<MyHomePage> {
   Color _dangerColor(bool isDark) =>
       isDark ? const Color(0xFFFF2D78) : const Color(0xFFD81B60);
 
+  Color _successColor(bool isDark) =>
+      isDark ? const Color(0xFF19F6A5) : const Color(0xFF00A86B);
+
   Color _textColor(bool isDark) =>
       isDark ? Colors.white : const Color(0xFF102030);
 
   Color _subtleTextColor(bool isDark) =>
       isDark ? const Color(0xFF6FB6FF) : const Color(0xFF376D9A);
 
-  BoxDecoration _glowBox({
-    required bool isDark,
-    required double radius,
-  }) {
+  BoxDecoration _glowBox({required bool isDark, required double radius}) {
     final base = _panelColor(isDark);
     final glow = _primaryGlow(isDark);
 
@@ -496,9 +626,259 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  void _showChatbotPanel(bool isDark) {
+    _dismissKeyboard();
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        String? statusMessage;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AnimatedPadding(
+              duration: const Duration(milliseconds: 180),
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: Container(
+                margin: AppDesign.detailsSheetMargin,
+                padding: AppDesign.detailsSheetPadding,
+                decoration: BoxDecoration(
+                  color: _panelColor(isDark),
+                  borderRadius: BorderRadius.circular(AppDesign.radiusDialog),
+                  border: Border.all(
+                    color: _secondaryGlow(isDark).withValues(alpha: 0.65),
+                    width: 1.4,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.32),
+                      blurRadius: 28,
+                      spreadRadius: 4,
+                    ),
+                  ],
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: AppDesign.topBarIconBoxSize,
+                            height: AppDesign.topBarIconBoxSize,
+                            decoration: BoxDecoration(
+                              color: _secondaryGlow(
+                                isDark,
+                              ).withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(
+                                AppDesign.radiusItem,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.smart_toy_rounded,
+                              color: _secondaryGlow(isDark),
+                              size: AppDesign.topBarActionIconSize,
+                            ),
+                          ),
+                          const SizedBox(width: AppDesign.gapItem),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'ASISTENTE VIRTUAL',
+                                  style: TextStyle(
+                                    color: _primaryGlow(isDark),
+                                    fontSize: AppDesign.fontSectionTitle,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                const SizedBox(height: AppDesign.gapTiny),
+                                Text(
+                                  'Chatbot de seguridad en preparación',
+                                  style: TextStyle(
+                                    color: _subtleTextColor(isDark),
+                                    fontSize: AppDesign.fontLabel,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Cerrar',
+                            onPressed: () => Navigator.pop(context),
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: _primaryGlow(isDark),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppDesign.gapContent),
+                      Text(
+                        'Escribe tu consulta de seguridad:',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _textColor(isDark),
+                          fontSize: AppDesign.fontBody,
+                          height: AppDesign.bodyLineHeight,
+                        ),
+                      ),
+                      const SizedBox(height: AppDesign.gapStandard),
+                      TextField(
+                        controller: _chatbotTextController,
+                        minLines: 1,
+                        maxLines: 3,
+                        textInputAction: TextInputAction.send,
+                        onSubmitted: (_) {
+                          final message = _chatbotTextController.text.trim();
+                          if (message.isEmpty) return;
+                          _chatbotTextController.clear();
+                          setModalState(() {
+                            statusMessage =
+                                'Mensaje recibido. El asistente se conectará próximamente.';
+                          });
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'Escribe un mensaje...',
+                          suffixIcon: IconButton(
+                            tooltip: 'Enviar',
+                            onPressed: () {
+                              final message =
+                                  _chatbotTextController.text.trim();
+                              if (message.isEmpty) return;
+                              _chatbotTextController.clear();
+                              setModalState(() {
+                                statusMessage =
+                                    'Mensaje recibido. El asistente se conectará próximamente.';
+                              });
+                            },
+                            icon: Icon(
+                              Icons.send_rounded,
+                              color: _secondaryGlow(isDark),
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (statusMessage != null) ...[
+                        const SizedBox(height: AppDesign.gapCompact),
+                        Text(
+                          statusMessage!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: _subtleTextColor(isDark),
+                            fontSize: AppDesign.fontCaption,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: AppDesign.gapStandard),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildLegacyDraggableChatbot(bool isDark, BoxConstraints constraints) {
+    final defaultPosition = Offset(
+      constraints.maxWidth -
+          AppDesign.chatbotButtonSize -
+          AppDesign.chatbotScreenMargin,
+      constraints.maxHeight -
+          AppDesign.chatbotButtonSize -
+          AppDesign.chatbotBottomClearance,
+    );
+    final currentPosition = _chatbotPosition ?? defaultPosition;
+    final double maxLeft = math
+        .max(
+          AppDesign.chatbotScreenMargin,
+          constraints.maxWidth -
+              AppDesign.chatbotButtonSize -
+              AppDesign.chatbotScreenMargin,
+        )
+        .toDouble();
+    final double maxTop = math
+        .max(
+          120.0,
+          constraints.maxHeight -
+              AppDesign.chatbotButtonSize -
+              AppDesign.chatbotBottomClearance,
+        )
+        .toDouble();
+    final safePosition = Offset(
+      currentPosition.dx
+          .clamp(AppDesign.chatbotScreenMargin, maxLeft)
+          .toDouble(),
+      currentPosition.dy.clamp(120.0, maxTop).toDouble(),
+    );
+
+    return Positioned(
+      left: safePosition.dx,
+      top: safePosition.dy,
+      child: Semantics(
+        button: true,
+        label: 'Abrir asistente virtual',
+        child: GestureDetector(
+          onPanUpdate: (details) {
+            setState(() {
+              _chatbotPosition = Offset(
+                (safePosition.dx + details.delta.dx)
+                    .clamp(AppDesign.chatbotScreenMargin, maxLeft)
+                    .toDouble(),
+                (safePosition.dy + details.delta.dy)
+                    .clamp(120.0, maxTop)
+                    .toDouble(),
+              );
+            });
+          },
+          onLongPress: () {
+            setState(() {
+              _chatbotPosition = null;
+            });
+          },
+          onTap: () => _showChatbotPanel(isDark),
+          child: Container(
+            width: AppDesign.chatbotButtonSize,
+            height: AppDesign.chatbotButtonSize,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _panelColor(isDark),
+              border: Border.all(
+                color: _secondaryGlow(isDark).withValues(alpha: 0.75),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: _secondaryGlow(isDark).withValues(alpha: 0.32),
+                  blurRadius: 18,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.smart_toy_rounded,
+              color: _secondaryGlow(isDark),
+              size: AppDesign.sectionIconSize,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildTopBar(bool isDark) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+      padding: AppDesign.topBarPadding,
       decoration: BoxDecoration(
         color: _backgroundColor(isDark).withValues(alpha: 0.94),
         border: Border(
@@ -512,22 +892,28 @@ class _MyHomePageState extends State<MyHomePage> {
         bottom: false,
         child: Row(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: _glowBox(isDark: isDark, radius: 14),
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Image.asset('assets/images/phishing.png'),
+            RobotRainTrigger(
+              child: Container(
+                width: AppDesign.topBarIconBoxSize,
+                height: AppDesign.topBarIconBoxSize,
+                decoration: _glowBox(
+                  isDark: isDark,
+                  radius: AppDesign.radiusItem,
+                ),
+                child: Icon(
+                  Icons.smart_toy_rounded,
+                  color: _secondaryGlow(isDark),
+                  size: AppDesign.topBarActionIconSize,
+                ),
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: AppDesign.gapItem),
             Expanded(
               child: Text(
                 widget.title,
                 style: TextStyle(
                   color: _primaryGlow(isDark),
-                  fontSize: 16,
+                  fontSize: AppDesign.fontSectionTitle,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1,
                   shadows: [
@@ -548,7 +934,7 @@ class _MyHomePageState extends State<MyHomePage> {
               icon: Icon(
                 isDark ? Icons.light_mode_rounded : Icons.dark_mode_rounded,
                 color: _secondaryGlow(isDark),
-                size: 28,
+                size: AppDesign.topBarActionIconSize,
               ),
             ),
           ],
@@ -558,106 +944,213 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildScannerSection(bool isDark) {
-    return Container(
-      width: 280,
-      height: 280,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: _panelColor(isDark).withValues(alpha: 0.65),
-        border: Border.all(
-          color: _primaryGlow(isDark).withValues(alpha: 0.55),
-          width: 3,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _primaryGlow(isDark).withValues(alpha: 0.14),
-            blurRadius: 24,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            width: 230,
-            height: 230,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _primaryGlow(isDark).withValues(alpha: 0.25),
-                width: 1.5,
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 250,
-            height: 250,
-            child: CircularProgressIndicator(
-              strokeCap: StrokeCap.round,
-              value: _scanProgress,
-              strokeWidth: 10,
-              color: _primaryGlow(isDark),
-              backgroundColor: _primaryGlow(isDark).withValues(alpha: 0.15),
-            ),
-          ),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.radar_rounded,
-                color: _primaryGlow(isDark),
-                size: 88,
-              ),
-              const SizedBox(height: 18),
-              Text(
-                _isLoading ? 'ANALIZANDO OBJETIVO...' : 'ESCANEANDO ENTORNO...',
-                style: TextStyle(
-                  color: _primaryGlow(isDark),
-                  fontSize: 12,
-                  letterSpacing: 1,
+    return ValueListenableBuilder<double>(
+      valueListenable: _scanProgressRender,
+      builder: (context, progress, child) {
+        final activeColor =
+            _isLoading ? _secondaryGlow(isDark) : _primaryGlow(isDark);
+
+        return RepaintBoundary(
+          child: SizedBox(
+            width: 280,
+            height: 280,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size.square(280),
+                  painter: _ScannerDialPainter(
+                    progress: progress,
+                    isActive: _isLoading,
+                    primaryColor: _primaryGlow(isDark),
+                    secondaryColor: _secondaryGlow(isDark),
+                    panelColor: _panelColor(isDark),
+                  ),
                 ),
-              ),
-            ],
+                Container(
+                  width: 164,
+                  height: 164,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _panelColor(isDark),
+                    border: Border.all(
+                      color: activeColor.withValues(alpha: 0.38),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.16),
+                        blurRadius: 24,
+                        spreadRadius: 3,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        width: 62,
+                        height: 62,
+                        decoration: BoxDecoration(
+                          color: activeColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(
+                            AppDesign.radiusControl,
+                          ),
+                          border: Border.all(
+                            color: activeColor.withValues(alpha: 0.30),
+                          ),
+                        ),
+                        child: Icon(
+                          _isLoading
+                              ? Icons.travel_explore_rounded
+                              : Icons.radar_rounded,
+                          color: activeColor,
+                          size: AppDesign.actionIconSize,
+                        ),
+                      ),
+                      const SizedBox(height: AppDesign.gapCompact),
+                      Text(
+                        _isLoading ? 'ANALIZANDO' : 'SISTEMA LISTO',
+                        style: TextStyle(
+                          color: activeColor,
+                          fontSize: AppDesign.fontLabel,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: AppDesign.gapTiny),
+                      Text(
+                        _isLoading
+                            ? '${(progress * 100).round()}% COMPLETADO'
+                            : 'ESCANEO URL',
+                        style: TextStyle(
+                          color: _subtleTextColor(isDark),
+                          fontSize: AppDesign.fontMicro,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   Widget _buildUrlInput(bool isDark) {
     return Column(
+      key: _urlInputSectionKey,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'URL A ESCANEAR:',
-          style: TextStyle(
-            color: _primaryGlow(isDark),
-            fontSize: 16,
-            letterSpacing: 1.0,
-            fontWeight: FontWeight.w700,
-          ),
+        Row(
+          children: [
+            Container(
+              width: AppDesign.listLeadingSize,
+              height: AppDesign.listLeadingSize,
+              decoration: BoxDecoration(
+                color: _primaryGlow(isDark).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+              ),
+              child: Icon(
+                Icons.link_rounded,
+                color: _primaryGlow(isDark),
+                size: AppDesign.listIconSize,
+              ),
+            ),
+            const SizedBox(width: AppDesign.gapCompact),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'URL A ESCANEAR',
+                    style: TextStyle(
+                      color: _primaryGlow(isDark),
+                      fontSize: AppDesign.fontSectionTitle,
+                      letterSpacing: AppDesign.cardTitleLetterSpacing,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppDesign.gapTiny),
+                  Text(
+                    'PEGA O CAPTURA UN LINK FÁCIL',
+                    style: TextStyle(
+                      color: _subtleTextColor(isDark),
+                      fontSize: AppDesign.fontMicro,
+                      letterSpacing: AppDesign.cardSubtitleLetterSpacing,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDesign.gapRegular,
+                vertical: AppDesign.gapXSmall,
+              ),
+              decoration: BoxDecoration(
+                color: _secondaryGlow(isDark).withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+                border: Border.all(
+                  color: _secondaryGlow(isDark).withValues(alpha: 0.25),
+                ),
+              ),
+              child: Text(
+                'URL',
+                style: TextStyle(
+                  color: _secondaryGlow(isDark),
+                  fontSize: AppDesign.fontMicro,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1,
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: AppDesign.gapItem),
         Container(
-          decoration: _glowBox(isDark: isDark, radius: 18),
+          decoration: BoxDecoration(
+            color: _panelColor(isDark),
+            borderRadius: BorderRadius.circular(AppDesign.radiusControl),
+            border: Border.all(
+              color: _primaryGlow(isDark).withValues(alpha: 0.45),
+              width: 1.4,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: _primaryGlow(isDark).withValues(alpha: 0.12),
+                blurRadius: 18,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
           child: TextField(
             controller: _urlTextField,
             focusNode: _focusNode,
             style: TextStyle(
               color: _textColor(isDark),
-              fontSize: 14,
+              fontSize: AppDesign.fontBody,
               letterSpacing: 1,
             ),
             decoration: InputDecoration(
+              filled: false,
               hintText: 'https://google.xyz/',
               hintStyle: TextStyle(
                 color: _subtleTextColor(isDark).withValues(alpha: 0.55),
               ),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 22,
-                vertical: 22,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              errorBorder: InputBorder.none,
+              focusedErrorBorder: InputBorder.none,
+              contentPadding: AppDesign.controlPadding,
+              prefixIcon: Icon(
+                Icons.language_rounded,
+                color: _primaryGlow(isDark),
               ),
               suffixIcon: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -680,6 +1173,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         _scanProgress = 0.0;
                         _isLoading = false;
                       });
+                      _scanProgressRender.value = 0.0;
 
                       if (!alreadyClean) {
                         _setConsolePhase(0);
@@ -723,17 +1217,19 @@ class _MyHomePageState extends State<MyHomePage> {
             isDark: isDark,
             icon: Icons.camera_alt_rounded,
             label: 'ESCANEO VISUAL',
+            subtitle: 'CAPTURAR URL',
             isPressed: _isPressedCamera,
             onTap: () => methodCamera(context),
             primaryColor: _primaryGlow(isDark),
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: AppDesign.gapStandard),
         Expanded(
           child: _ActionCard(
             isDark: isDark,
             icon: Icons.memory_rounded,
-            label: 'ANÁLISIS PROFUNDO',
+            label: 'ANÁLISIS IA',
+            subtitle: 'EJECUTAR MODELO',
             isPressed: _isPressedIA,
             onTap: () => methodPrediction(context),
             primaryColor: _secondaryGlow(isDark),
@@ -762,97 +1258,256 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildConsolePanel(bool isDark) {
+    final hasResult = globalTitleMessage != '...' || globalPercentage > 0;
+    final riskColor = hasResult ? globalColor : _primaryGlow(isDark);
+    final riskLevel = !hasResult
+        ? 'SIN DATOS'
+        : globalPercentage >= 0.75
+            ? 'CRÍTICO'
+            : globalPercentage >= 0.40
+                ? 'PRECAUCIÓN'
+                : 'BAJO';
+
     return Container(
+      key: _consoleSectionKey,
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: _glowBox(isDark: isDark, radius: 22),
+      padding: AppDesign.cardPadding,
+      decoration: _glowBox(isDark: isDark, radius: AppDesign.radiusCard),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'SALIDA DE CONSOLA',
-            style: TextStyle(
-              color: _textColor(isDark),
-              fontSize: 16,
-              letterSpacing: 1,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 20),
-          ...List.generate(_consoleVisibleLines.length, (index) {
-            final text = _consoleVisibleLines[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                text,
-                textAlign: TextAlign.justify,
-                style: TextStyle(
-                  color: _resolveConsoleLineColor(text, isDark),
-                  fontSize: 15,
-                  height: 1.4,
-                ),
-              ),
-            );
-          }),
-          const SizedBox(height: 18),
-          Divider(
-            color: _primaryGlow(isDark).withValues(alpha: 0.22),
-            thickness: 1,
-          ),
-          const SizedBox(height: 18),
           Row(
             children: [
+              Container(
+                width: AppDesign.listLeadingSize,
+                height: AppDesign.listLeadingSize,
+                decoration: BoxDecoration(
+                  color: _secondaryGlow(isDark).withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+                ),
+                child: Icon(
+                  Icons.terminal_rounded,
+                  color: _secondaryGlow(isDark),
+                  size: AppDesign.listIconSize,
+                ),
+              ),
+              const SizedBox(width: AppDesign.gapCompact),
               Expanded(
                 child: Text(
-                  'PROBABILIDAD DE PHISHING:',
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  'SALIDA',
                   style: TextStyle(
-                    color: _primaryGlow(isDark),
-                    fontSize: 12,
-                    letterSpacing: 1,
+                    color: _textColor(isDark),
+                    fontSize: AppDesign.fontSectionTitle,
+                    letterSpacing: AppDesign.cardTitleLetterSpacing,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
-              FittedBox(
-                fit: BoxFit.scaleDown,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDesign.gapRegular,
+                  vertical: AppDesign.gapXSmall,
+                ),
+                decoration: BoxDecoration(
+                  color: _secondaryGlow(isDark).withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+                  border: Border.all(
+                    color: _secondaryGlow(isDark).withValues(alpha: 0.28),
+                  ),
+                ),
                 child: Text(
-                  '${(globalPercentage * 100).toStringAsFixed(1)}%',
+                  _isLoading ? 'LIVE' : 'READY',
                   style: TextStyle(
-                    color: globalPercentage >= 0.5
-                        ? _dangerColor(isDark)
-                        : _secondaryGlow(isDark),
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    color: _secondaryGlow(isDark),
+                    fontSize: AppDesign.fontMicro,
+                    fontWeight: FontWeight.w800,
                     letterSpacing: 1,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(24),
-            child: LinearPercentIndicator(
-              lineHeight: 12.0,
-              percent: globalPercentage.clamp(0.0, 1.0),
-              padding: EdgeInsets.zero,
-              animation: true,
-              animationDuration: 700,
-              linearGradient: const LinearGradient(
-                colors: [
-                  Color(0xFF19F6A5),
-                  Color(0xFFF4D03F),
-                  Color(0xFFFF8C42),
-                  Color(0xFFFF2D78),
+          const SizedBox(height: AppDesign.gapStandard),
+          RepaintBoundary(
+            child: Container(
+              width: double.infinity,
+              padding: AppDesign.itemPadding,
+              decoration: BoxDecoration(
+                color: const Color(0xFF020914),
+                borderRadius: BorderRadius.circular(AppDesign.radiusControl),
+                border: Border.all(
+                  color: _primaryGlow(isDark).withValues(alpha: 0.24),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const _TerminalDot(color: Color(0xFFFF5A7A)),
+                      const SizedBox(width: AppDesign.gapXSmall),
+                      const _TerminalDot(color: Color(0xFFFFB020)),
+                      const SizedBox(width: AppDesign.gapXSmall),
+                      const _TerminalDot(color: Color(0xFF19F6A5)),
+                      const Spacer(),
+                      Text(
+                        'SYSTEM://SCAN',
+                        style: TextStyle(
+                          color: _primaryGlow(isDark).withValues(alpha: 0.60),
+                          fontSize: AppDesign.fontMicro,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppDesign.gapCompact),
+                  Divider(
+                    height: 1,
+                    color: _primaryGlow(isDark).withValues(alpha: 0.14),
+                  ),
+                  const SizedBox(height: AppDesign.gapCompact),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _consoleRenderVersion,
+                    builder: (context, _, child) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: List.generate(_consoleVisibleLines.length, (
+                          index,
+                        ) {
+                          final text = _consoleVisibleLines[index];
+                          return Padding(
+                            padding: AppDesign.linePadding,
+                            child: Text(
+                              text.toUpperCase(),
+                              style: TextStyle(
+                                color: _resolveConsoleLineColor(text, true),
+                                fontSize: AppDesign.fontBody,
+                                letterSpacing: 0.25,
+                                height: AppDesign.bodyLineHeight,
+                              ),
+                            ),
+                          );
+                        }),
+                      );
+                    },
+                  ),
                 ],
               ),
-              backgroundColor: _primaryGlow(isDark).withValues(alpha: 0.12),
-              barRadius: const Radius.circular(24),
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: AppDesign.gapContent),
+          Container(
+            width: double.infinity,
+            padding: AppDesign.itemPadding,
+            decoration: BoxDecoration(
+              color: riskColor.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(AppDesign.radiusControl),
+              border: Border.all(color: riskColor.withValues(alpha: 0.24)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: AppDesign.listLeadingSize,
+                      height: AppDesign.listLeadingSize,
+                      decoration: BoxDecoration(
+                        color: riskColor.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(
+                          AppDesign.radiusSmall,
+                        ),
+                      ),
+                      child: Icon(
+                        Icons.monitor_heart_outlined,
+                        color: riskColor,
+                        size: AppDesign.listIconSize,
+                      ),
+                    ),
+                    const SizedBox(width: AppDesign.gapCompact),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'RIESGO',
+                            style: TextStyle(
+                              color: _textColor(isDark),
+                              fontSize: AppDesign.fontSubtitle,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: AppDesign.gapTiny),
+                          Text(
+                            riskLevel,
+                            style: TextStyle(
+                              color: riskColor,
+                              fontSize: AppDesign.fontCaption,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      '${(globalPercentage * 100).toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        color: riskColor,
+                        fontSize: AppDesign.fontMetric,
+                        fontWeight: FontWeight.w900,
+                        height: 1,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppDesign.gapStandard),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(AppDesign.radiusSmall),
+                  child: LinearProgressIndicator(
+                    minHeight: 10,
+                    value: globalPercentage.clamp(0.0, 1.0),
+                    backgroundColor: _primaryGlow(
+                      isDark,
+                    ).withValues(alpha: 0.12),
+                    valueColor: AlwaysStoppedAnimation<Color>(riskColor),
+                  ),
+                ),
+                const SizedBox(height: AppDesign.gapSmall),
+                Row(
+                  children: [
+                    Text(
+                      'SEGURO',
+                      style: TextStyle(
+                        color: _successColor(isDark),
+                        fontSize: AppDesign.fontMicro,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      'PRECAUCIÓN',
+                      style: TextStyle(
+                        color: Color(0xFFFFB020),
+                        fontSize: AppDesign.fontMicro,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      'CRÍTICO',
+                      style: TextStyle(
+                        color: _dangerColor(isDark),
+                        fontSize: AppDesign.fontMicro,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppDesign.gapLarge),
           _buildStatusCard(isDark),
         ],
       ),
@@ -860,57 +1515,92 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildStatusCard(bool isDark) {
+    final hasResult = globalTitleMessage != '...' || globalPercentage > 0;
+    final statusColor = hasResult ? globalColor : _primaryGlow(isDark);
+    final title = hasResult ? globalTitleMessage : 'SIN ANÁLISIS';
+    final message = hasResult ? globalMessage : '';
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: _backgroundColor(isDark).withValues(alpha: isDark ? 0.65 : 0.5),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: globalColor.withValues(alpha: 0.45),
-          width: 1.2,
+        gradient: LinearGradient(
+          colors: [
+            statusColor.withValues(alpha: isDark ? 0.16 : 0.10),
+            _backgroundColor(isDark).withValues(alpha: isDark ? 0.72 : 0.58),
+          ],
         ),
+        borderRadius: BorderRadius.circular(AppDesign.radiusControl),
+        border: Border.all(color: statusColor.withValues(alpha: 0.36)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: globalColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              getIconColorMessageForPercentage(globalPercentage)[0],
-              color: globalColor,
-            ),
-          ),
-          const SizedBox(width: 14),
+          Container(width: 5, height: 112, color: statusColor),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  globalTitleMessage,
-                  style: TextStyle(
-                    color: _textColor(isDark),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1,
+            child: Padding(
+              padding: AppDesign.itemPadding,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: AppDesign.topBarIconBoxSize,
+                    height: AppDesign.topBarIconBoxSize,
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(AppDesign.radiusItem),
+                    ),
+                    child: Icon(
+                      hasResult
+                          ? getIconColorMessageForPercentage(
+                              globalPercentage,
+                            )[0]
+                          : Icons.shield_outlined,
+                      color: statusColor,
+                      size: AppDesign.sectionIconSize,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  globalMessage,
-                  textAlign: TextAlign.justify,
-                  style: TextStyle(
-                    color: _subtleTextColor(isDark),
-                    fontSize: 14,
-                    height: 1.4,
+                  const SizedBox(width: AppDesign.gapItem),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'RESULTADO DEL ANÁLISIS',
+                          style: TextStyle(
+                            color: statusColor,
+                            fontSize: AppDesign.fontMicro,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                        const SizedBox(height: AppDesign.gapXSmall),
+                        Text(
+                          title,
+                          style: TextStyle(
+                            color: _textColor(isDark),
+                            fontSize: AppDesign.fontSectionTitle,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        if (message.isNotEmpty) ...[
+                          const SizedBox(height: AppDesign.gapSmall),
+                          Text(
+                            message,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _subtleTextColor(isDark),
+                              fontSize: AppDesign.fontBody,
+                              height: AppDesign.bodyLineHeight,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -921,35 +1611,49 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildBottomInfo(bool isDark) {
     return Column(
       children: [
-        const SizedBox(height: 16),
+        const SizedBox(height: AppDesign.gapStandard),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.shield_outlined, color: _primaryGlow(isDark), size: 20),
-            const SizedBox(width: 24),
-            Icon(Icons.key_outlined, color: _primaryGlow(isDark), size: 20),
-            const SizedBox(width: 24),
-            Icon(Icons.fingerprint, color: _primaryGlow(isDark), size: 20),
+            Icon(
+              Icons.shield_outlined,
+              color: _primaryGlow(isDark),
+              size: AppDesign.footerIconSize,
+            ),
+            const SizedBox(width: AppDesign.footerIconGap),
+            Icon(
+              Icons.key_outlined,
+              color: _primaryGlow(isDark),
+              size: AppDesign.footerIconSize,
+            ),
+            const SizedBox(width: AppDesign.footerIconGap),
+            Icon(
+              Icons.fingerprint,
+              color: _primaryGlow(isDark),
+              size: AppDesign.footerIconSize,
+            ),
           ],
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: AppDesign.gapContent),
         Text(
           '© 2026 Alejandro Mayró Lena',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: _primaryGlow(isDark),
-            fontSize: 13,
+            fontSize: AppDesign.fontLabel,
             letterSpacing: 2.0,
           ),
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: AppDesign.gapLarge),
       ],
     );
   }
 
   Widget _buildBottomNavigation(bool isDark) {
+    const selectedIndex = 0;
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 26),
+      padding: AppDesign.bottomNavigationPadding,
       decoration: BoxDecoration(
         color: _backgroundColor(isDark).withValues(alpha: 0.95),
         border: Border(
@@ -964,63 +1668,45 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: _primaryGlow(isDark).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _primaryGlow(isDark).withValues(alpha: 0.25),
-                  ),
-                ),
-                child: IconButton(
-                  onPressed: () {
-                    _dismissKeyboard();
-                    widget.onNavigate(0);
-                  },
-                  icon: Icon(
-                    Icons.shield_rounded,
-                    color: _primaryGlow(isDark),
-                    size: 28,
-                  ),
-                ),
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _dismissKeyboard();
-                widget.onNavigate(1);
-              },
-              icon: Icon(
-                Icons.bar_chart_rounded,
-                color: _primaryGlow(isDark),
-                size: 28,
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _dismissKeyboard();
-              },
-              icon: Icon(
-                Icons.history_rounded,
-                color: _primaryGlow(isDark),
-                size: 28,
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                _dismissKeyboard();
-                widget.onNavigate(2);
-              },
-              icon: Icon(
-                Icons.settings_rounded,
-                color: _primaryGlow(isDark),
-                size: 28,
-              ),
-            ),
+            _navItem(isDark, Icons.shield_rounded, 0, selectedIndex),
+            _navItem(isDark, Icons.bar_chart_rounded, 1, selectedIndex),
+            _navItem(isDark, Icons.history_rounded, 2, selectedIndex),
+            _navItem(isDark, Icons.sports_esports_rounded, 3, selectedIndex),
+            _navItem(isDark, Icons.settings_rounded, 4, selectedIndex),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navItem(bool isDark, IconData icon, int index, int selectedIndex) {
+    final selected = index == selectedIndex;
+
+    return SizedBox(
+      width: AppDesign.topBarIconBoxSize,
+      height: AppDesign.topBarIconBoxSize,
+      child: DecoratedBox(
+        decoration: selected
+            ? BoxDecoration(
+                color: _primaryGlow(isDark).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppDesign.radiusItem),
+                border: Border.all(
+                  color: _primaryGlow(isDark).withValues(alpha: 0.25),
+                ),
+              )
+            : const BoxDecoration(),
+        child: IconButton(
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          onPressed: () {
+            _dismissKeyboard();
+            widget.onNavigate(index);
+          },
+          icon: Icon(
+            icon,
+            color: _primaryGlow(isDark),
+            size: AppDesign.sectionIconSize,
+          ),
         ),
       ),
     );
@@ -1038,35 +1724,55 @@ class _MyHomePageState extends State<MyHomePage> {
       child: Scaffold(
         resizeToAvoidBottomInset: !isLandscape,
         backgroundColor: _backgroundColor(isDark),
-        body: Stack(
-          children: [
-            Positioned.fill(child: _buildBackgroundGrid(isDark)),
-            Column(
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
               children: [
-                _buildTopBar(isDark),
-                Expanded(
-                  child: SingleChildScrollView(
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
-                    child: Column(
-                      children: [
-                        _buildScannerSection(isDark),
-                        const SizedBox(height: 26),
-                        _buildUrlInput(isDark),
-                        const SizedBox(height: 22),
-                        _buildActionButtons(isDark),
-                        const SizedBox(height: 22),
-                        _buildConsolePanel(isDark),
-                        _buildBottomInfo(isDark),
-                      ],
+                Positioned.fill(child: _buildBackgroundGrid(isDark)),
+                Column(
+                  children: [
+                    _buildTopBar(isDark),
+                    Expanded(
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification is UserScrollNotification ||
+                              notification is ScrollUpdateNotification) {
+                            if (_isLoading) {
+                              _userMovedScroll = true;
+                              _autoScrollEnabledForCurrentScan = false;
+                            }
+                          }
+
+                          return false;
+                        },
+                        child: SingleChildScrollView(
+                          controller: _scrollController,
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: AppDesign.pagePadding,
+                          child: AppContentWidth(
+                            child: Column(
+                              children: [
+                                _buildScannerSection(isDark),
+                                const SizedBox(height: AppDesign.gapLarge),
+                                _buildUrlInput(isDark),
+                                const SizedBox(height: AppDesign.gapLarge),
+                                _buildActionButtons(isDark),
+                                const SizedBox(height: AppDesign.gapLarge),
+                                _buildConsolePanel(isDark),
+                                _buildBottomInfo(isDark),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                    _buildBottomNavigation(isDark),
+                  ],
                 ),
-                _buildBottomNavigation(isDark),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -1083,11 +1789,150 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
+class _ScannerDialPainter extends CustomPainter {
+  const _ScannerDialPainter({
+    required this.progress,
+    required this.isActive,
+    required this.primaryColor,
+    required this.secondaryColor,
+    required this.panelColor,
+  });
+
+  final double progress;
+  final bool isActive;
+  final Color primaryColor;
+  final Color secondaryColor;
+  final Color panelColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final activeColor = isActive ? secondaryColor : primaryColor;
+    final outerRadius = size.shortestSide / 2 - 5;
+
+    canvas.drawCircle(
+      center,
+      outerRadius,
+      Paint()..color = panelColor.withValues(alpha: 0.72),
+    );
+
+    final ringPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.18)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawCircle(center, 118, ringPaint);
+    canvas.drawCircle(center, 96, ringPaint);
+
+    final crosshairPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.10)
+      ..strokeWidth = 1;
+    canvas.drawLine(
+      Offset(center.dx - 116, center.dy),
+      Offset(center.dx + 116, center.dy),
+      crosshairPaint,
+    );
+    canvas.drawLine(
+      Offset(center.dx, center.dy - 116),
+      Offset(center.dx, center.dy + 116),
+      crosshairPaint,
+    );
+
+    for (int index = 0; index < 48; index++) {
+      final angle = -math.pi / 2 + index * math.pi * 2 / 48;
+      final isMajor = index % 4 == 0;
+      final innerRadius = isMajor ? 124.0 : 129.0;
+      final tickPaint = Paint()
+        ..color = isMajor
+            ? secondaryColor.withValues(alpha: 0.82)
+            : primaryColor.withValues(alpha: 0.28)
+        ..strokeWidth = isMajor ? 2.2 : 1;
+      canvas.drawLine(
+        Offset(
+          center.dx + math.cos(angle) * innerRadius,
+          center.dy + math.sin(angle) * innerRadius,
+        ),
+        Offset(
+          center.dx + math.cos(angle) * outerRadius,
+          center.dy + math.sin(angle) * outerRadius,
+        ),
+        tickPaint,
+      );
+    }
+
+    final baseArcPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.14)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: 112),
+      -math.pi / 2,
+      math.pi * 2,
+      false,
+      baseArcPaint,
+    );
+
+    final visibleProgress =
+        isActive ? progress.clamp(0.0, 1.0).toDouble() : 0.0;
+    final progressPaint = Paint()
+      ..color = activeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8
+      ..strokeCap = StrokeCap.butt;
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: 112),
+      -math.pi / 2,
+      math.pi * 2 * visibleProgress,
+      false,
+      progressPaint,
+    );
+
+    if (isActive) {
+      final sweepAngle = -math.pi / 2 + math.pi * 2 * progress;
+      final sweepPaint = Paint()
+        ..color = secondaryColor.withValues(alpha: 0.34)
+        ..strokeWidth = 2;
+      canvas.drawLine(
+        center,
+        Offset(
+          center.dx + math.cos(sweepAngle) * 108,
+          center.dy + math.sin(sweepAngle) * 108,
+        ),
+        sweepPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScannerDialPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.isActive != isActive ||
+      oldDelegate.primaryColor != primaryColor ||
+      oldDelegate.secondaryColor != secondaryColor ||
+      oldDelegate.panelColor != panelColor;
+}
+
+class _TerminalDot extends StatelessWidget {
+  const _TerminalDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
 class _ActionCard extends StatelessWidget {
   const _ActionCard({
     required this.isDark,
     required this.icon,
     required this.label,
+    required this.subtitle,
     required this.isPressed,
     required this.onTap,
     required this.primaryColor,
@@ -1096,6 +1941,7 @@ class _ActionCard extends StatelessWidget {
   final bool isDark;
   final IconData icon;
   final String label;
+  final String subtitle;
   final bool isPressed;
   final VoidCallback onTap;
   final Color primaryColor;
@@ -1103,21 +1949,32 @@ class _ActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: 1.0, end: isPressed ? 1.04 : 1.0),
+      tween: Tween<double>(begin: 1.0, end: isPressed ? 0.97 : 1.0),
       duration: const Duration(milliseconds: 180),
       builder: (context, scale, child) {
         return Transform.scale(
           scale: scale,
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(AppDesign.radiusPanel),
             child: Container(
-              height: 150,
+              height: 156,
+              padding: AppDesign.itemPadding,
               decoration: BoxDecoration(
-                color: isDark
-                    ? const Color(0xFF071423).withValues(alpha: 0.82)
-                    : Colors.white.withValues(alpha: 0.96),
-                borderRadius: BorderRadius.circular(20),
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          primaryColor.withValues(alpha: 0.16),
+                          const Color(0xFF071423),
+                        ]
+                      : [
+                          Color.lerp(Colors.white, primaryColor, 0.10)!,
+                          Colors.white,
+                        ],
+                ),
+                borderRadius: BorderRadius.circular(AppDesign.radiusPanel),
                 border: Border.all(
                   color: primaryColor.withValues(alpha: 0.42),
                   width: 1.4,
@@ -1131,16 +1988,67 @@ class _ActionCard extends StatelessWidget {
                 ],
               ),
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(icon, color: primaryColor, size: 42),
-                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        width: 54,
+                        height: 54,
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(
+                            AppDesign.radiusItem,
+                          ),
+                          border: Border.all(
+                            color: primaryColor.withValues(alpha: 0.30),
+                          ),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: primaryColor,
+                          size: AppDesign.sectionIconSize,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        width: 30,
+                        height: 30,
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.10),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.arrow_outward_rounded,
+                          color: primaryColor,
+                          size: AppDesign.smallActionIconSize,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
                   Text(
                     label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : const Color(0xFF102030),
+                      letterSpacing: 0.7,
+                      fontSize: AppDesign.fontLabel,
+                      fontWeight: FontWeight.w900,
+                      height: 1.15,
+                    ),
+                  ),
+                  const SizedBox(height: AppDesign.gapTiny),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: primaryColor,
-                      letterSpacing: 1,
-                      fontSize: 12,
+                      letterSpacing: 0.8,
+                      fontSize: AppDesign.fontMicro,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ],

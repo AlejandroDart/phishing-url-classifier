@@ -1,0 +1,14 @@
+Flask
+flask-cors
+python-dotenv
+psycopg2-binary
+joblib
+numpy
+pandas
+requests
+beautifulsoup4
+python-whois
+tldextract
+scikit-learn==1.7.2
+shap==0.51.0
+tensorflow==2.21.0

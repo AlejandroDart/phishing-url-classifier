@@ -1,6 +1,6 @@
 {
-    "name": "detector_url",
-    "short_name": "detector_url",
+    "name": "LinkShield AI",
+    "short_name": "LinkShield AI",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

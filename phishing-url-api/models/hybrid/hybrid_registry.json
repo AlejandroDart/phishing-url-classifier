@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-14T16:24:25.229979+00:00",
+  "id": "hybrid_ensemble",
+  "display_name": "LinkShield Hybrid Ensemble",
+  "family": "hybrid",
+  "runtime_type": "hybrid",
+  "recommended": true,
+  "threshold": 0.5,
+  "dataset": {
+    "name": "dataset-phishing-clean.csv",
+    "total_rows": 11429,
+    "train_rows": 6857,
+    "validation_rows": 1143,
+    "calibration_rows": 1143,
+    "test_rows": 2286
+  },
+  "branches": [
+    "random_forest",
+    "mlp_regularized",
+    "cnn_1d",
+    "gru",
+    "heuristic"
+  ],
+  "artifacts": {
+    "random_forest": "hybrid_random_forest_branch.pkl",
+    "mlp_regularized": "hybrid_mlp_branch.keras",
+    "meta_classifier": "hybrid_meta_classifier.pkl",
+    "cnn_1d": "../sequential/cnn_1d.keras",
+    "gru": "../sequential/gru.keras"
+  },
+  "artifact_ids": {
+    "random_forest": "c75a4f89b8b8",
+    "mlp_regularized": "116cefec812c",
+    "meta_classifier": "f00725de9320"
+  },
+  "metrics": {
+    "accuracy": 0.9501312335958005,
+    "precision": 0.9525065963060686,
+    "recall": 0.94750656167979,
+    "f1": 0.95,
+    "roc_auc": 0.9876964198372842
+  },
+  "confusion_matrix": {
+    "tn": 1089,
+    "fp": 54,
+    "fn": 60,
+    "tp": 1083
+  },
+  "meta_coefficients": {
+    "random_forest": 4.490069199436267,
+    "mlp_regularized": 2.2978355741593335,
+    "cnn_1d": 2.0588888045537312,
+    "gru": 1.383970790044715,
+    "heuristic": 0.4655980145570833
+  },
+  "meta_intercept": -5.277656300416165,
+  "heuristic_threshold": 0.15,
+  "random_forest_reference_f1": 0.9491525423728814
+}

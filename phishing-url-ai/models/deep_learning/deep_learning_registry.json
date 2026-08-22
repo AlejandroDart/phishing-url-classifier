@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-14T15:43:13.701040+00:00",
+  "framework": "TensorFlow/Keras",
+  "tensorflow_version": "2.21.0",
+  "keras_version": "3.14.0",
+  "dataset": {
+    "name": "dataset-phishing-final-top25.csv",
+    "total_rows": 11429,
+    "train_rows": 7314,
+    "validation_rows": 1829,
+    "test_rows": 2286,
+    "test_legitimate_rows": 1143,
+    "test_phishing_rows": 1143
+  },
+  "features": [
+    "google_index",
+    "domain_age",
+    "nb_hyperlinks",
+    "nb_www",
+    "phish_hints",
+    "safe_anchor",
+    "longest_word_path",
+    "ratio_digits_url",
+    "ratio_intHyperlinks",
+    "longest_words_raw",
+    "domain_in_title",
+    "length_words_raw",
+    "nb_dots",
+    "domain_registration_length",
+    "ratio_extRedirection",
+    "nb_hyphens",
+    "char_repeat",
+    "length_hostname",
+    "nb_slash",
+    "ratio_extHyperlinks",
+    "links_in_tags",
+    "avg_word_path",
+    "domain_with_copyright",
+    "ip",
+    "ratio_extMedia"
+  ],
+  "best_deep_learning_model_id": "mlp_regularized",
+  "application_recommended_model_id": "random_forest",
+  "random_forest_reference": {
+    "id": "random_forest",
+    "display_name": "Random Forest Top 25",
+    "accuracy": 0.9488188976377953,
+    "precision": 0.9430051813471503,
+    "recall": 0.9553805774278216,
+    "f1": 0.9491525423728814,
+    "roc_auc": 0.986329738091575
+  },
+  "models": [
+    {
+      "id": "mlp_regularized",
+      "display_name": "MLP Regularizada",
+      "description": "Red profunda con Batch Normalization, Dropout y regularización L2.",
+      "technical_name": "mlp_regularized",
+      "artifact": "mlp_regularized.keras",
+      "artifact_id": "3335195cd634",
+      "recommended_deep_learning": true,
+      "recommended_for_application": false,
+      "threshold": 0.5,
+      "parameter_count": 14465,
+      "metrics": {
+        "accuracy": 0.941819772528434,
+        "precision": 0.9500891265597148,
+        "recall": 0.9326334208223972,
+        "f1": 0.941280353200883,
+        "roc_auc": 0.9825607428992635
+      },
+      "confusion_matrix": {
+        "tn": 1087,
+        "fp": 56,
+        "fn": 77,
+        "tp": 1066
+      },
+      "training": {
+        "model_id": "mlp_regularized",
+        "epochs_completed": 67,
+        "best_epoch": 57,
+        "best_val_loss": 0.1472470760345459
+      }
+    },
+    {
+      "id": "mlp_compact",
+      "display_name": "MLP Compacta",
+      "description": "Red densa ligera con dos capas ocultas.",
+      "technical_name": "mlp_compact",
+      "artifact": "mlp_compact.keras",
+      "artifact_id": "684b28878443",
+      "recommended_deep_learning": false,
+      "recommended_for_application": false,
+      "threshold": 0.5,
+      "parameter_count": 3777,
+      "metrics": {
+        "accuracy": 0.9400699912510936,
+        "precision": 0.9343696027633851,
+        "recall": 0.9466316710411199,
+        "f1": 0.9404606692742286,
+        "roc_auc": 0.9819878158274834
+      },
+      "confusion_matrix": {
+        "tn": 1067,
+        "fp": 76,
+        "fn": 61,
+        "tp": 1082
+      },
+      "training": {
+        "model_id": "mlp_compact",
+        "epochs_completed": 64,
+        "best_epoch": 54,
+        "best_val_loss": 0.1376398652791977
+      }
+    },
+    {
+      "id": "mlp_residual",
+      "display_name": "MLP Residual",
+      "description": "Red densa con conexión residual y normalización por lotes.",
+      "technical_name": "mlp_residual",
+      "artifact": "mlp_residual.keras",
+      "artifact_id": "197cefa2560f",
+      "recommended_deep_learning": false,
+      "recommended_for_application": false,
+      "threshold": 0.5,
+      "parameter_count": 8449,
+      "metrics": {
+        "accuracy": 0.9352580927384077,
+        "precision": 0.9430097951914514,
+        "recall": 0.926509186351706,
+        "f1": 0.9346866725507502,
+        "roc_auc": 0.9806307020021446
+      },
+      "confusion_matrix": {
+        "tn": 1079,
+        "fp": 64,
+        "fn": 84,
+        "tp": 1059
+      },
+      "training": {
+        "model_id": "mlp_residual",
+        "epochs_completed": 40,
+        "best_epoch": 30,
+        "best_val_loss": 0.14312702417373657
+      }
+    }
+  ]
+}

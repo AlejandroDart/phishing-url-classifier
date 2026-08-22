@@ -1,0 +1,31 @@
+{
+  "id": "mlp_regularized",
+  "display_name": "MLP Regularizada",
+  "description": "Red profunda con Batch Normalization, Dropout y regularización L2.",
+  "technical_name": "mlp_regularized",
+  "artifact": "mlp_regularized.keras",
+  "artifact_id": "3335195cd634",
+  "recommended_deep_learning": true,
+  "recommended_for_application": false,
+  "threshold": 0.5,
+  "parameter_count": 14465,
+  "metrics": {
+    "accuracy": 0.941819772528434,
+    "precision": 0.9500891265597148,
+    "recall": 0.9326334208223972,
+    "f1": 0.941280353200883,
+    "roc_auc": 0.9825607428992635
+  },
+  "confusion_matrix": {
+    "tn": 1087,
+    "fp": 56,
+    "fn": 77,
+    "tp": 1066
+  },
+  "training": {
+    "model_id": "mlp_regularized",
+    "epochs_completed": 67,
+    "best_epoch": 57,
+    "best_val_loss": 0.1472470760345459
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "exported_at": "2026-08-14T16:20:08.154744+00:00",
+  "framework": "TensorFlow/Keras",
+  "tensorflow_version": "2.21.0",
+  "dataset": {
+    "name": "dataset-phishing-clean.csv",
+    "total_rows": 11429,
+    "train_rows": 6857,
+    "validation_rows": 1143,
+    "calibration_rows": 1143,
+    "test_rows": 2286
+  },
+  "sequence": {
+    "encoding": "character",
+    "max_length": 200,
+    "vocabulary_size": 87
+  },
+  "best_model_id": "cnn_1d",
+  "models": [
+    {
+      "id": "cnn_1d",
+      "display_name": "CNN 1D por caracteres",
+      "family": "deep_learning_sequential",
+      "runtime_type": "keras_sequence",
+      "artifact": "cnn_1d.keras",
+      "artifact_id": "3e7ab40cf96a",
+      "recommended_in_family": true,
+      "threshold": 0.25,
+      "parameter_count": 14945,
+      "metrics": {
+        "accuracy": 0.8604549431321085,
+        "precision": 0.8275039745627981,
+        "recall": 0.910761154855643,
+        "f1": 0.8671386922115785,
+        "roc_auc": 0.9440559868774059
+      },
+      "confusion_matrix": {
+        "tn": 926,
+        "fp": 217,
+        "fn": 102,
+        "tp": 1041
+      },
+      "training": {
+        "model_id": "cnn_1d",
+        "epochs_completed": 16,
+        "best_epoch": 16,
+        "best_val_loss": 0.3411160409450531
+      }
+    },
+    {
+      "id": "gru",
+      "display_name": "GRU por caracteres",
+      "family": "deep_learning_sequential",
+      "runtime_type": "keras_sequence",
+      "artifact": "gru.keras",
+      "artifact_id": "7d229f59f815",
+      "recommended_in_family": false,
+      "threshold": 0.405,
+      "parameter_count": 11353,
+      "metrics": {
+        "accuracy": 0.8355205599300087,
+        "precision": 0.8026835043409629,
+        "recall": 0.889763779527559,
+        "f1": 0.8439834024896266,
+        "roc_auc": 0.9169841302645569
+      },
+      "confusion_matrix": {
+        "tn": 893,
+        "fp": 250,
+        "fn": 126,
+        "tp": 1017
+      },
+      "training": {
+        "model_id": "gru",
+        "epochs_completed": 16,
+        "best_epoch": 16,
+        "best_val_loss": 0.36489737033843994
+      }
+    },
+    {
+      "id": "bilstm",
+      "display_name": "BiLSTM por caracteres",
+      "family": "deep_learning_sequential",
+      "runtime_type": "keras_sequence",
+      "artifact": "bilstm.keras",
+      "artifact_id": "7305e11cca0d",
+      "recommended_in_family": false,
+      "threshold": 0.38000000000000006,
+      "parameter_count": 13097,
+      "metrics": {
+        "accuracy": 0.821084864391951,
+        "precision": 0.7801526717557252,
+        "recall": 0.8941382327209099,
+        "f1": 0.833265389319201,
+        "roc_auc": 0.9089853488348952
+      },
+      "confusion_matrix": {
+        "tn": 855,
+        "fp": 288,
+        "fn": 121,
+        "tp": 1022
+      },
+      "training": {
+        "model_id": "bilstm",
+        "epochs_completed": 10,
+        "best_epoch": 7,
+        "best_val_loss": 0.37953969836235046
+      }
+    }
+  ]
+}

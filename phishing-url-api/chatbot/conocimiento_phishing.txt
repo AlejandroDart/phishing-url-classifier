@@ -1,0 +1,257 @@
+# BASE DE CONOCIMIENTO DE LINKSHIELD AI
+
+Este documento contiene la informacion autorizada para el asistente virtual de LinkShield AI. El asistente debe responder solamente utilizando este contenido.
+
+## Identidad del chatbot
+
+El asistente se llama Anita. Es la asistente virtual de ciberseguridad incluida en LinkShield AI. Su funcion es explicar de forma clara el phishing, los enlaces, las buenas practicas digitales y el funcionamiento de la aplicacion. No es una persona, no reemplaza a un especialista y no debe solicitar contraseñas, codigos de verificacion, datos bancarios ni documentos personales.
+
+Anita puede conversar de manera cordial, saludar, responder como se encuentra, despedirse y orientar al usuario sobre los temas disponibles. Debe mantener respuestas breves, profesionales, tranquilas y faciles de comprender.
+
+## Que es el phishing
+
+El phishing es una tecnica de engano utilizada para intentar robar informacion, dinero o acceso a cuentas. El atacante se hace pasar por una empresa, banco, red social, servicio de mensajeria, institucion publica o persona conocida. Normalmente intenta provocar urgencia, miedo, curiosidad o una falsa oportunidad para que la victima abra un enlace, entregue credenciales, descargue un archivo o realice un pago.
+
+Un mensaje de phishing puede llegar por correo electronico, SMS, WhatsApp, redes sociales, anuncios, codigos QR o sitios web falsos. Que un mensaje incluya el nombre o logotipo real de una empresa no demuestra que sea legitimo.
+
+## Que es una URL o link
+
+Una URL es la direccion que permite localizar un recurso en Internet. Tambien se conoce como enlace o link. Por ejemplo, en https://www.ejemplo.com/inicio, https indica el protocolo, www.ejemplo.com es el dominio y /inicio es la ruta.
+
+El dominio debe revisarse con atencion porque los atacantes usan nombres parecidos a los originales. banco-ejemplo-seguro.com no necesariamente pertenece a banco-ejemplo.com. Tambien pueden sustituir letras, agregar palabras, utilizar subdominios confusos o emplear acortadores para ocultar el destino.
+
+HTTPS cifra la comunicacion entre el dispositivo y el sitio, pero no garantiza que el sitio sea legitimo. Una pagina de phishing tambien puede utilizar HTTPS y mostrar un candado.
+
+## Senales de un enlace sospechoso
+
+Algunas senales de riesgo son: dominio escrito de forma extraña, faltas ortograficas, demasiados guiones o numeros, direccion IP en lugar de dominio, enlace acortado sin contexto, solicitud inesperada de contraseñas, premios no solicitados, amenazas de bloqueo, urgencia para pagar, archivos desconocidos y diferencias entre el texto visible del enlace y su destino real.
+
+Ninguna señal aislada demuestra por si sola que una URL sea phishing. Se deben considerar varias caracteristicas, el contexto del mensaje y el resultado del analisis. Ante una duda importante, no se debe abrir el enlace ni ingresar datos personales.
+
+## Como usar LinkShield AI
+
+LinkShield AI permite analizar enlaces antes de confiar en ellos. En la pantalla ESCANER se puede pegar o escribir un link en el campo principal. Tambien se puede compartir un enlace desde otra aplicacion hacia LinkShield AI para insertarlo directamente en el campo.
+
+El boton ESCANEO VISUAL permite capturar una URL mediante la camara y reconocimiento de texto. El boton ANALISIS IA ejecuta el modelo de deteccion con la URL ingresada. Antes de analizar se debe revisar que el texto reconocido o compartido corresponda al enlace esperado.
+
+La aplicacion muestra una probabilidad o nivel de riesgo y un resultado del analisis. El resultado es una ayuda preventiva y no una garantia absoluta. Si el enlace solicita credenciales, dinero o datos sensibles, se debe verificar por un canal oficial independiente.
+
+## Como funciona la aplicacion LinkShield AI
+
+LinkShield AI funciona en cuatro pasos: recibe una URL mediante escritura, pegado, compartir o captura visual; extrae las caracteristicas necesarias; consulta el modelo de inteligencia artificial; y presenta una probabilidad junto con una clasificacion preventiva. El usuario decide si desea guardar el resultado globalmente y puede consultar sus analisis locales.
+
+La app movil se comunica con la API de LinkShield AI para ejecutar el modelo, obtener estadisticas globales y consultar el chatbot. El chatbot utiliza una base de conocimiento autorizada y un modelo de lenguaje local mediante Ollama para redactar respuestas naturales sin depender de informacion externa.
+
+## Pantallas y funciones de LinkShield AI
+
+ESCANER es la pantalla principal. Permite ingresar, pegar, limpiar, compartir o capturar un link y luego ejecutar el modelo mediante ANALISIS IA. El circulo superior representa visualmente el estado del escaneo y la seccion SALIDA informa el progreso y el resultado.
+
+DASHBOARD resume los analisis almacenados en el servidor: total de URLs, proporcion de amenazas, ultimos analisis y tendencia diaria. Sus estadisticas dependen de los registros globales disponibles y no representan todo Internet.
+
+HISTORIAL LOCAL muestra los analisis guardados en el dispositivo. Permite filtrar, ordenar, consultar detalles y eliminar registros locales. Eliminar un registro local no elimina necesariamente un registro global previamente enviado al servidor.
+
+VIDEOJUEGOS contiene actividades educativas, como quiz y sopa de letras, destinadas a reforzar conceptos de seguridad. Sus resultados son recreativos y no modifican el modelo de deteccion.
+
+CONFIGURACION permite elegir tema claro u oscuro, vibracion, almacenamiento global y sensibilidad IA. Tambien incluye informacion de diagnostico para comprobar la conexion con el servidor.
+
+El boton flotante abre a Anita, la asistente de LinkShield AI. El chatbot conserva el contexto reciente de la conversacion, puede coordinar el analisis tecnico de una URL y responder preguntas posteriores sobre el resultado. El mismo detector tecnico tambien sigue disponible desde ESCANER con ANALISIS IA.
+
+## Flujo recomendado para analizar un enlace
+
+Primero se debe obtener el enlace sin abrirlo, copiandolo, compartiendolo con la app o capturandolo visualmente. Luego se revisa que la URL insertada sea la esperada y se pulsa ANALISIS IA. Finalmente se interpreta la probabilidad junto con el dominio, el mensaje recibido y cualquier solicitud de datos o dinero.
+
+Si la URL fue obtenida mediante camara u OCR, debe comprobarse que las letras y simbolos fueron reconocidos correctamente. Un error de lectura puede cambiar el dominio analizado.
+
+## Uso del escaner
+
+Para usar el ESCANER se pega o escribe un link en el campo URL A ESCANEAR y se pulsa ANALISIS IA. El icono de limpieza permite borrar el campo y la flecha ejecuta la accion disponible. Antes de continuar se debe comprobar que el dominio este completo y bien escrito.
+
+ESCANEO VISUAL abre la camara para capturar texto que contenga una URL. La aplicacion intenta reconocer el enlace y devolverlo al campo principal. La captura visual no determina por si sola si existe phishing; despues de revisar el texto se debe ejecutar ANALISIS IA.
+
+## Privacidad y datos
+
+El historial local permanece en el dispositivo. El almacenamiento global es opcional y puede desactivarse desde Configuracion. Cuando esta desactivado, la API puede procesar la URL para generar la prediccion sin registrar el resultado en la base de datos global.
+
+Una URL puede contener parametros con identificadores, busquedas o datos de sesion. Antes de analizarla se recomienda eliminar informacion personal innecesaria, siempre que hacerlo no cambie el destino que se desea comprobar. Nunca se deben pegar contraseñas, codigos temporales, tokens privados o datos bancarios.
+
+## Como funciona el analisis IA
+
+LinkShield AI extrae caracteristicas de la URL, del dominio y, cuando es posible, del contenido o informacion publica asociada. El modelo combina esas señales para calcular una probabilidad de phishing. La aplicacion compara esa probabilidad con el umbral de sensibilidad configurado y muestra una clasificacion preventiva.
+
+El modelo no comprende las intenciones de una persona ni puede garantizar que un sitio siga siendo igual despues del analisis. Las funciones que dependen de red, contenido web, indice o informacion de dominio pueden variar si un servicio no responde, bloquea consultas o cambia sus datos.
+
+## Tipos de phishing y suplantacion
+
+Smishing es phishing enviado mediante SMS o mensajeria. Vishing utiliza llamadas de voz. Quishing utiliza codigos QR para ocultar un enlace. Spear phishing es un ataque personalizado dirigido a una persona o equipo. Whaling se dirige a cargos ejecutivos o personas con acceso valioso.
+
+La suplantacion o spoofing intenta aparentar que un mensaje, numero, remitente o sitio pertenece a una fuente legitima. El typosquatting registra dominios con errores de escritura parecidos al original. Los ataques homograficos sustituyen caracteres por otros visualmente similares.
+
+La ingenieria social es la manipulacion psicologica utilizada para conseguir que una persona actue contra su propio interes. Puede usar autoridad, urgencia, miedo, curiosidad, premios, ofertas, romance o ayuda falsa.
+
+## Enlaces acortados, redirecciones y codigos QR
+
+Un acortador oculta el dominio final y no es malicioso por si mismo, pero dificulta la revision. Una redireccion envia al navegador desde una URL hacia otra. Varias redirecciones o destinos inesperados aumentan la necesidad de precaucion.
+
+Un codigo QR debe tratarse como un enlace. Antes de continuar se debe revisar la direccion detectada. No se debe iniciar sesion, pagar ni instalar aplicaciones desde un QR inesperado pegado en lugares publicos o enviado por un desconocido.
+
+## Correos, mensajes y archivos adjuntos
+
+Se debe revisar el dominio real del remitente, el tono, la urgencia, los errores y la solicitud concreta. El nombre visible puede falsificarse. Nunca se debe confiar solo en una fotografia, logotipo, firma o nombre conocido.
+
+Los archivos adjuntos pueden contener malware, macros o instaladores falsos. No se deben abrir archivos inesperados, incluso si parecen facturas, curriculos, comprobantes o documentos compartidos. Ante una duda se confirma con el remitente por otro canal.
+
+## Contraseñas y autenticacion multifactor
+
+Una contraseña debe ser larga, unica y diferente para cada servicio. Un gestor de contraseñas ayuda a generar y guardar claves de forma segura. Reutilizar una contraseña permite que una filtracion afecte varias cuentas.
+
+La autenticacion multifactor agrega una segunda verificacion. Las aplicaciones autenticadoras o llaves de seguridad suelen ofrecer mayor proteccion que SMS. Ningun soporte legitimo deberia pedir un codigo temporal, una clave de recuperacion o aprobar una notificacion que el usuario no inicio.
+
+## Respuesta ante un incidente
+
+Si solo se abrio un enlace, se debe cerrar la pagina, no descargar nada y revisar si se concedieron permisos. Si se escribio una contraseña, se cambia desde el sitio oficial, se cierran sesiones y se activa autenticacion multifactor. Si se aprobo una operacion bancaria, se contacta inmediatamente a la entidad.
+
+Si se instalo una aplicacion, perfil o certificado sospechoso, se desconecta el dispositivo de redes cuando sea necesario y se busca ayuda tecnica confiable. Se recomienda conservar capturas, remitente, URL y hora del incidente para realizar un reporte, sin volver a abrir el contenido peligroso.
+
+## Como reportar phishing
+
+El mensaje puede reportarse desde la plataforma donde fue recibido. Tambien puede informarse a la empresa suplantada mediante sus canales oficiales. En incidentes financieros se debe contactar al banco; en ambientes laborales se informa al equipo de seguridad o soporte.
+
+No se debe reenviar un enlace peligroso sin advertencia. Para compartir evidencia es preferible una captura o texto desactivado que no pueda abrirse accidentalmente.
+
+## Conceptos relacionados de ciberseguridad
+
+Malware es software diseñado para causar daño, espiar o tomar control. Ransomware cifra o bloquea informacion para exigir un pago. Una vulnerabilidad es una debilidad que puede ser aprovechada. Una actualizacion de seguridad corrige fallos conocidos y debe instalarse desde fuentes oficiales.
+
+Una filtracion de datos expone informacion almacenada por una organizacion. Esto puede facilitar campañas de phishing mas convincentes. Que un atacante conozca el nombre, telefono o datos parciales de una persona no demuestra que sea una entidad legitima.
+
+## Lista rapida antes de confiar
+
+Comprobar el dominio caracter por caracter. Preguntarse si el mensaje era esperado. Revisar si exige urgencia, secreto, dinero, credenciales o codigos. Confirmar la solicitud mediante una aplicacion oficial, un marcador guardado o un numero obtenido independientemente. Utilizar LinkShield AI como apoyo, no como unica verificacion.
+
+## Como compartir un enlace con la app
+
+Desde una aplicacion compatible se debe mantener presionado el enlace o utilizar su opcion Compartir. Luego se selecciona LinkShield AI. La aplicacion abre el ESCANER e inserta el enlace en el campo para que el usuario pueda revisarlo y ejecutar el analisis.
+
+Compartir el enlace no significa que se analice automaticamente ni que se abra en el navegador. El usuario conserva el control y debe pulsar ANALISIS IA cuando este listo.
+
+## Interpretacion del riesgo
+
+Una probabilidad baja indica que el modelo encontro menos patrones asociados a phishing. Una probabilidad alta indica que encontro mas patrones de riesgo. La probabilidad no representa certeza matematica sobre la intencion real del sitio.
+
+El umbral configurado determina desde que probabilidad la aplicacion clasifica un enlace como phishing. Cambiar la sensibilidad puede hacer que la aplicacion sea mas estricta o mas permisiva. Un modo agresivo puede advertir sobre mas enlaces, pero tambien aumentar falsos positivos.
+
+Un falso positivo ocurre cuando un enlace legitimo se clasifica como riesgoso. Un falso negativo ocurre cuando un enlace malicioso no es detectado. Por esto nunca se debe depender exclusivamente de una herramienta automatica.
+
+## Historial local y global
+
+El historial local guarda analisis en el dispositivo para que el usuario pueda consultarlos posteriormente. Los registros locales pueden eliminarse desde la propia aplicacion.
+
+El registro global es opcional y se controla desde Configuracion mediante la opcion de almacenamiento o registro en servidor global. Si esta opcion esta desactivada, el analisis puede ejecutarse sin almacenar el resultado en la base de datos global. El historial global puede mostrar analisis registrados por el servidor.
+
+Cuando el almacenamiento global esta desactivado, el chatbot conserva el ultimo analisis solo en memoria temporal durante la conversacion y no guarda en PostgreSQL la URL, explicacion SHAP, decision, mensajes ni eventos multiagente. Al activarlo se guardan la prediccion, la explicacion y las trazas. Desactivar la opcion no elimina automaticamente registros historicos creados con anterioridad.
+
+No se deben incluir contraseñas, codigos de verificacion, numeros de tarjetas ni otros secretos dentro de una URL enviada para analizar.
+
+## Configuracion y sensibilidad IA
+
+Configuracion permite cambiar el tema visual, la vibracion, el almacenamiento global y la sensibilidad del detector. La sensibilidad modifica el umbral utilizado para interpretar la probabilidad entregada por el modelo.
+
+Una sensibilidad equilibrada busca un punto medio. Una sensibilidad mas agresiva prioriza advertir ante posibles amenazas. Una sensibilidad mas pasiva exige una probabilidad mayor antes de clasificar un enlace como phishing.
+
+## Que hacer ante un posible phishing
+
+No abrir el enlace ni descargar archivos. No responder al mensaje. No entregar contraseenas, codigos, datos bancarios o documentos. Entrar al servicio escribiendo manualmente su direccion oficial o usando su aplicacion oficial. Confirmar el mensaje mediante un numero o canal obtenido de una fuente confiable, no mediante los datos incluidos en el mensaje sospechoso.
+
+Si ya se entrego una contraseña, se debe cambiar inmediatamente desde el sitio oficial, cerrar sesiones activas y habilitar autenticacion de dos factores. Si se entregaron datos bancarios, se debe contactar al banco. Tambien se recomienda revisar el dispositivo y reportar el mensaje en la plataforma donde fue recibido.
+
+## Buenas practicas de seguridad
+
+Usar contraseñas diferentes y robustas para cada servicio, preferentemente con un gestor de contraseñas. Activar autenticacion de dos factores. Mantener sistema y aplicaciones actualizados. Evitar instalar aplicaciones o certificados desde enlaces desconocidos. Revisar cuidadosamente el dominio antes de iniciar sesion.
+
+Desconfiar de solicitudes urgentes e inesperadas. Un contacto conocido tambien puede tener su cuenta comprometida. Si un mensaje parece extraño, confirmar su autenticidad por otro medio.
+
+## Limites de LinkShield AI
+
+LinkShield AI es una herramienta educativa y preventiva. El modelo puede equivocarse y los sitios pueden cambiar después del analisis. Un resultado seguro no autoriza a entregar informacion sensible sin verificar el contexto y el dominio.
+
+El chatbot explica conceptos y el uso de la aplicacion basandose en esta base de conocimiento. Cuando el usuario incluye una URL, el chatbot coordina el detector tecnico existente y explica su resultado; el modelo de lenguaje nunca decide la clasificacion. El boton ANALISIS IA del escaner sigue disponible como flujo directo.
+
+## Preguntas frecuentes
+
+Pregunta: ¿Puedo confiar completamente en un resultado seguro? Respuesta: No. El resultado reduce incertidumbre, pero no es una garantia. Revisa el dominio, el contexto y las solicitudes del sitio.
+
+Pregunta: ¿El candado significa que una pagina es segura? Respuesta: El candado indica que la conexion utiliza HTTPS, pero una pagina maliciosa tambien puede tener HTTPS.
+
+Pregunta: ¿Link y URL son lo mismo? Respuesta: En el uso cotidiano suelen referirse a lo mismo: una direccion o enlace hacia un recurso de Internet.
+
+Pregunta: ¿El chatbot puede revisar mi enlace? Respuesta: Si. Envia la URL completa en el chat para coordinar su analisis tecnico, o utiliza ANALISIS IA en la pantalla ESCANER.
+
+## Explicabilidad SHAP
+
+LinkShield AI utiliza SHAP TreeExplainer para interpretar localmente cada resultado del clasificador RandomForest. La explicacion toma como salida objetivo la probabilidad de phishing. Un valor SHAP positivo indica que una caracteristica aumento esa probabilidad respecto de la probabilidad base; un valor negativo indica que la redujo y apoyo la clasificacion legitima.
+
+Los factores SHAP muestran influencia dentro del modelo para una evaluacion concreta. No prueban por si solos que una caracteristica sea la causa real de que un sitio sea phishing. La suma de la probabilidad base y todas las contribuciones SHAP reconstruye la probabilidad entregada por el modelo.
+
+Cuando el usuario pregunta por que una URL obtuvo cierto resultado, el chatbot debe mencionar primero los factores con mayor impacto absoluto, indicar si aumentaron o redujeron la probabilidad de phishing y mantener intactas la clasificacion y probabilidad tecnicas.
+
+### Significado de los puntos SHAP
+
+Los puntos SHAP son puntos porcentuales que una caracteristica suma o resta a la probabilidad de phishing respecto de una probabilidad base. No son una calificacion independiente sobre 100. Por ejemplo, una contribucion de -0.151 equivale a restar 15.1 puntos porcentuales, mientras una contribucion de 0.089 equivale a sumar 8.9 puntos. La probabilidad final se obtiene sumando a la base las contribuciones de las 25 variables, incluidas las que no aparecen entre los tres factores principales.
+
+### Diccionario de caracteristicas del clasificador
+
+Presencia en buscadores o google_index: indica si el dominio aparecio en una consulta site: despues de comprobar que resolvia por red. El valor 1 significa que fue encontrado. El valor 0 significa que no fue encontrado o no pudo confirmarse por red; esto no demuestra por si solo que el sitio sea malicioso.
+
+Antiguedad del dominio o domain_age: dias estimados desde la fecha de creacion registrada del dominio. El valor 0 tambien puede significar que la informacion WHOIS no estaba disponible.
+
+Cantidad de enlaces o nb_hyperlinks: numero de etiquetas de enlace encontradas en el HTML de la pagina.
+
+Uso de www o nb_www: cantidad de veces que aparece la cadena www en la URL completa.
+
+Palabras asociadas a phishing o phish_hints: cantidad de palabras de alerta encontradas en la URL, por ejemplo login, verify o account.
+
+Enlaces sin destino util o safe_anchor: proporcion de enlaces vacios, anclas #, javascript o about:blank. No significa literalmente que esos enlaces sean seguros.
+
+Palabra mas larga en la ruta o longest_word_path: longitud de la palabra mas extensa ubicada despues del dominio.
+
+Proporcion de numeros en la URL o ratio_digits_url: porcentaje de caracteres numericos respecto de la longitud total de la URL.
+
+Proporcion de enlaces internos o ratio_intHyperlinks: proporcion de enlaces de la pagina que apuntan al mismo dominio.
+
+Palabra mas larga de la URL o longest_words_raw: longitud de la palabra mas extensa encontrada en toda la URL.
+
+Dominio presente en el titulo o domain_in_title: indica si el nombre del dominio aparece en el titulo HTML de la pagina.
+
+Longitud total de palabras o length_words_raw: suma de las longitudes de las palabras que componen la URL.
+
+Cantidad de puntos o nb_dots: numero de caracteres punto presentes en la URL completa.
+
+Vigencia del registro del dominio o domain_registration_length: dias estimados entre las fechas de creacion y expiracion del registro del dominio.
+
+Proporcion de redirecciones externas o ratio_extRedirection: proporcion de redirecciones HTTP que terminan en un dominio diferente.
+
+Cantidad de guiones o nb_hyphens: numero de guiones presentes en la URL completa.
+
+Caracteres repetidos o char_repeat: cantidad de caracteres consecutivos repetidos dentro de la URL.
+
+Longitud del nombre de host o length_hostname: cantidad de caracteres del host, incluidos subdominios y dominio.
+
+Cantidad de barras o nb_slash: numero de caracteres / presentes en la URL.
+
+Proporcion de enlaces externos o ratio_extHyperlinks: proporcion de enlaces de la pagina que apuntan a otros dominios.
+
+Enlaces en etiquetas HTML o links_in_tags: cantidad de referencias encontradas en etiquetas link, script y meta.
+
+Longitud media de palabras en la ruta o avg_word_path: promedio de caracteres de las palabras ubicadas despues del dominio.
+
+Dominio junto al copyright o domain_with_copyright: indica si la pagina contiene copyright y menciona el nombre del dominio.
+
+Direccion IP usada como dominio o ip: indica si el host es una direccion IP en vez de un nombre de dominio.
+
+Proporcion de contenido externo o ratio_extMedia: proporcion de imagenes, audio o video cargados desde otros dominios.
+
+Ninguna caracteristica determina por si sola que una URL sea phishing. El modelo combina las 25 variables y SHAP explica como influyo cada una en esa prediccion concreta.
+
+Pregunta: ¿Se guardan obligatoriamente mis analisis en el servidor? Respuesta: No. El registro global es opcional y puede desactivarse desde Configuracion.
+
+Pregunta: ¿Que hago si el enlace llego desde un amigo? Respuesta: La cuenta del amigo podria estar comprometida. Confirma por otro canal antes de abrir un enlace inesperado.

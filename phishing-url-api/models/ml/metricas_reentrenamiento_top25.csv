@@ -1,0 +1,2 @@
+sklearn_version,dataset,rows,features_count,continuous_features_count,train_rows,test_rows,accuracy,precision,recall,f1,roc_auc,tn,fp,fn,tp
+1.7.2,dataset-phishing-selected-top25.csv,11429,25,20,9143,2286,0.9488188976377953,0.9430051813471503,0.9553805774278216,0.9491525423728814,0.986329738091575,1077,66,51,1092
