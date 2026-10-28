@@ -10,6 +10,7 @@
     <img src="https://img.shields.io/badge/F1%20h%C3%ADbrido-95.00%25-159957" alt="F1 híbrido 95.00%">
   </p>
   <p>Desarrollado por <strong>Alejandro Mayró Lena</strong></p>
+  <p><a href="https://github.com/users/AlejandroDart/projects/1"><strong>Planificación y seguimiento</strong></a> | <a href="https://github.com/users/AlejandroDart/projects/1/views/5"><strong>Cronograma Gantt</strong></a></p>
 </div>
 
 ---
@@ -144,6 +145,33 @@ La validación más reciente del proyecto registró **79 pruebas backend** y **1
 ## Estado del proyecto
 
 Proyecto académico y experimental en desarrollo. La arquitectura, los modelos y las métricas están documentados para facilitar su reproducción, evaluación y evolución.
+
+## Planificación y seguimiento
+
+La continuidad de **LinkShield AI** se gestiona en GitHub Projects, donde se organizan las actividades, los hitos técnicos y académicos, las fechas y los estados de avance.
+
+**[Ver el cronograma general (Gantt)](https://github.com/users/AlejandroDart/projects/1/views/5)**
+
+El tablero permite revisar:
+
+- **[Hitos del proyecto](https://github.com/users/AlejandroDart/projects/1/views/1):** resultados técnicos y compromisos de entrega.
+- **[Tablero de actividades](https://github.com/users/AlejandroDart/projects/1/views/2):** implementación, integración, pruebas, seguridad y documentación, organizadas por estado.
+- **[Cronograma de tareas](https://github.com/users/AlejandroDart/projects/1/views/3):** fechas de inicio y objetivo de las actividades.
+- **[Entregas académicas](https://github.com/users/AlejandroDart/projects/1/views/4):** las cuatro entregas principales del proyecto.
+- **[Cronograma general (Gantt)](https://github.com/users/AlejandroDart/projects/1/views/5):** hitos y actividades en una línea de tiempo para visualizar la secuencia de trabajo.
+
+### Entregas principales de 2026
+
+| Fecha | Hito | Entregable previsto |
+|---|---|---|
+| 27 de octubre | Primer informe y presentación, 70 % | MVP funcional, evidencia de pruebas y planificación actualizada. |
+| 17 de noviembre | Segundo informe de avance, 90 % | Consolidación de la aplicación y resultados de rendimiento, seguridad y validación con usuarios. |
+| 8 de diciembre | Entrega final, 100 % | Solución y documentación finales, con resultados y evidencias del alcance aprobado. |
+| 29 de diciembre | Presentación ante comisión | Defensa del proyecto, demostración y respaldo de resultados. |
+
+Estos porcentajes corresponden a los hitos de entrega. El avance de cada actividad se registra por separado en el tablero. La planificación conserva los hitos técnicos iniciales y continúa con la consolidación, validación y cierre del proyecto.
+
+**Responsable de la planificación y el seguimiento:** Alejandro Mayró Lena.
 
 ## Autor
 
