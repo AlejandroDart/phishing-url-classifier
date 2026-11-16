@@ -24,8 +24,8 @@ enum SensitivityProfile {
       };
 
   String get shortDescription => switch (this) {
-        SensitivityProfile.aggressive => 'Detecta más señales de riesgo',
-        SensitivityProfile.balanced => 'Usa el umbral validado del modelo',
-        SensitivityProfile.passive => 'Reduce las alertas preventivas',
+        SensitivityProfile.aggressive => 'Más alertas preventivas',
+        SensitivityProfile.balanced => 'Usa el umbral del modelo',
+        SensitivityProfile.passive => 'Menos alertas preventivas',
       };
 }

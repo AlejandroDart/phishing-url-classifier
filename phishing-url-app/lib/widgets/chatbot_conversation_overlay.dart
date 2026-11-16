@@ -335,7 +335,7 @@ class _ChatbotConversationOverlayState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'ANITA',
+                  'Anita',
                   style: TextStyle(
                     color: _primaryColor,
                     fontSize: AppDesign.fontSectionTitle,
@@ -344,7 +344,7 @@ class _ChatbotConversationOverlayState
                   ),
                 ),
                 Text(
-                  'Asistente de LinkShield AI',
+                  'LinkShield AI',
                   style: TextStyle(
                     color: _subtleTextColor,
                     fontSize: AppDesign.fontCaption,
@@ -1114,8 +1114,7 @@ class _ChatbotConversationOverlayState
       child: TextField(
         controller: _textController,
         enabled: !_isSending,
-        minLines: 1,
-        maxLines: 3,
+        maxLines: 1,
         textInputAction: TextInputAction.send,
         onSubmitted: (_) => _sendMessage(
           sheetContext: sheetContext,
@@ -1123,7 +1122,8 @@ class _ChatbotConversationOverlayState
           scrollController: scrollController,
         ),
         decoration: InputDecoration(
-          hintText: 'Escribe tu pregunta...',
+          hintText: 'Tu pregunta',
+          hintMaxLines: 1,
           prefixIcon: Icon(Icons.chat_bubble_outline, color: _subtleTextColor),
           suffixIcon: IconButton(
             tooltip: 'Enviar',

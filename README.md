@@ -79,6 +79,8 @@ La matriz de confusión sobre 2,286 observaciones contiene 1,089 verdaderos nega
 
 ## Inicio rápido
 
+Para retomar el desarrollo en otro equipo o iniciar un nuevo chat, consulta el [README de continuidad](README-CONTINUIDAD.md).
+
 ### Requisitos
 
 - Python 3.12.

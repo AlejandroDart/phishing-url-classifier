@@ -519,17 +519,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                       ),
                       const SizedBox(height: AppDesign.gapXSmall),
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          subtitle,
-                          maxLines: 1,
-                          style: TextStyle(
-                            color: _subtleTextColor(isDark),
-                            fontSize: AppDesign.fontCaption,
-                            fontWeight: FontWeight.w600,
-                          ),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: _subtleTextColor(isDark),
+                          fontSize: AppDesign.fontCaption,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -740,16 +735,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 const SizedBox(height: AppDesign.gapSmall),
-                Text(
-                  '${profile.shortDescription}. Umbral aplicado: '
-                  '${(effectiveThreshold * 100).round()}% · Referencia del '
-                  'modelo: ${(baseThreshold * 100).round()}%.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: _subtleTextColor(isDark),
-                    fontSize: AppDesign.fontMicro,
-                    height: AppDesign.bodyLineHeight,
-                    fontWeight: FontWeight.w600,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    profile.shortDescription,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: _subtleTextColor(isDark),
+                      fontSize: AppDesign.fontMicro,
+                      height: AppDesign.bodyLineHeight,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -811,6 +808,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: AppDesign.gapXSmall),
                       Text(
                         subtitle,
+                        textAlign: TextAlign.justify,
                         style: TextStyle(
                           color: _subtleTextColor(isDark),
                           fontSize: AppDesign.fontCaption,
@@ -885,7 +883,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: AppDesign.gapXSmall),
                     Text(
-                      'Se aplicará en el escáner y en Anita',
+                      'Aplicará en escáner y Anita',
                       style: TextStyle(
                         color: _subtleTextColor(isDark),
                         fontSize: AppDesign.fontCaption,
@@ -1017,6 +1015,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: AppDesign.gapSmall),
             Text(
               selected.description,
+              textAlign: TextAlign.justify,
               style: TextStyle(
                 color: _subtleTextColor(isDark),
                 fontSize: AppDesign.fontCaption,
@@ -1379,7 +1378,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           isDark: isDark,
                           icon: Icons.dark_mode_rounded,
                           title: 'Modo Oscuro',
-                          subtitle: 'Interfaz de alto contraste',
+                          subtitle: 'Tema oscuro',
                           value: isDark,
                           onChanged: (_) async {
                             await widget.onToggleTheme();
@@ -1408,8 +1407,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           icon: Icons.storage_rounded,
                           title: 'Almacenamiento',
                           subtitle: _globalStorageEnabled
-                              ? 'Guarda análisis, SHAP y trazas en servidor'
-                              : 'Solo memoria temporal; no guarda en servidor',
+                              ? 'Guarda en el servidor'
+                              : 'Solo memoria temporal',
                           value: _globalStorageEnabled,
                           onChanged: (value) async {
                             await widget.onGlobalStorageChanged(value);
@@ -1419,8 +1418,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         _buildSectionTitle(isDark, 'PARÁMETROS DE DETECCIÓN'),
                         _buildThresholdCard(isDark),
                         const SizedBox(height: AppDesign.gapBetweenSections),
-                        _buildSectionTitle(
-                            isDark, 'MODELO DE INTELIGENCIA ARTIFICIAL'),
+                        _buildSectionTitle(isDark, 'MODELO DE IA'),
                         _buildModelSelector(isDark),
                         const SizedBox(height: AppDesign.gapBetweenCards),
                         _buildNavigationCard(
