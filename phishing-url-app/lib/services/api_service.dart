@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
@@ -8,14 +9,24 @@ import 'preferences_service.dart';
 /// CONFIG API
 /// ===============================
 class ApiConfig {
-  static const String baseUrl = String.fromEnvironment(
+  static const String _configuredBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://10.26.146.209:5000',
+    defaultValue: 'http://127.0.0.1:5000',
   );
-  static const String apiKey = String.fromEnvironment(
-    'API_KEY',
-    defaultValue: '',
-  );
+  static const String apiKey = String.fromEnvironment('API_KEY');
+
+  static String get baseUrl {
+    if (kReleaseMode &&
+        !kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      final uri = Uri.tryParse(_configuredBaseUrl);
+      if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+        throw StateError(
+            'Configura API_BASE_URL con HTTPS para Android release.');
+      }
+    }
+    return _configuredBaseUrl;
+  }
 }
 
 /// ===============================
@@ -61,7 +72,6 @@ DateTime? parseToDateTime(dynamic value) {
 /// PREDICCIÓN
 /// ===============================
 Future<Map<String, dynamic>> predictPhishing(String url) async {
-  const apiUrl = '${ApiConfig.baseUrl}/predict';
   final globalStorageEnabled =
       await PreferencesService().getGlobalStorageEnabled();
   final selectedModelId = await PreferencesService().getSelectedModelId();
@@ -76,7 +86,7 @@ Future<Map<String, dynamic>> predictPhishing(String url) async {
 
   try {
     final response = await http.post(
-      Uri.parse(apiUrl),
+      Uri.parse('${ApiConfig.baseUrl}/predict'),
       headers: {
         'Content-Type': 'application/json',
         'X-API-KEY': ApiConfig.apiKey,

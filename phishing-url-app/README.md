@@ -75,7 +75,7 @@ La URL del backend y la clave se inyectan durante la compilación mediante `dart
 | `API_BASE_URL` | `http://127.0.0.1:5000` | Dirección de la API Flask |
 | `API_KEY` | `CLAVE_LOCAL` | Credencial compartida con el backend |
 
-No agregues valores reales de producción al repositorio.
+Sin configuración se usa `http://127.0.0.1:5000` y no se incluye ninguna clave. No guardes claves reales en el repositorio ni uses una credencial de producción en una compilación distribuida.
 
 ## Ejecución
 
@@ -113,6 +113,16 @@ flutter run -d ID_DEL_DISPOSITIVO `
 ```
 
 El dispositivo Android y el servidor deben poder comunicarse por la red. `127.0.0.1` dentro del teléfono apunta al propio teléfono, no al equipo que ejecuta Flask.
+
+Para generar un APK instalable de pruebas con la API local, utiliza el modo depuración:
+
+```powershell
+flutter build apk --debug `
+  --dart-define=API_BASE_URL=http://IP_DEL_EQUIPO:5000 `
+  --dart-define=API_KEY=CLAVE_LOCAL
+```
+
+HTTP se permite en Android solo en los modos `debug` y `profile`. Úsalos únicamente en una red de pruebas. El modo `release` requiere una URL HTTPS.
 
 ## Flujo de análisis
 
@@ -158,7 +168,7 @@ flutter build apk --release `
   --dart-define=API_KEY=CLAVE_DE_DESARROLLO
 ```
 
-> Una clave incluida en una compilación web no puede considerarse secreta. Para un despliegue público se debe usar autenticación real y un proxy de backend.
+> `dart-define` mantiene las claves fuera del código fuente, pero no las oculta dentro de un APK ni de una compilación web. Para un despliegue público se requiere autenticación de usuarios y mantener las credenciales de servicio en el backend.
 
 ## Autor
 

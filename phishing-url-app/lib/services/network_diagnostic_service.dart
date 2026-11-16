@@ -31,12 +31,25 @@ class NetworkDiagnosticService {
   const NetworkDiagnosticService();
 
   Future<NetworkDiagnosticResult> testConnection() async {
-    final baseUri = Uri.parse(ApiConfig.baseUrl);
+    final Uri baseUri;
+    try {
+      baseUri = Uri.parse(ApiConfig.baseUrl);
+    } on StateError catch (error) {
+      return NetworkDiagnosticResult(
+        isOnline: false,
+        statusText: 'ERROR',
+        host: '-',
+        port: '-',
+        scheme: '-',
+        endpoint: '/stats/count',
+        message: error.message,
+      );
+    }
 
     final stopwatch = Stopwatch()..start();
 
     try {
-      final uri = Uri.parse('${ApiConfig.baseUrl}/stats/count');
+      final uri = baseUri.replace(path: '${baseUri.path}/stats/count');
 
       final response = await http.get(
         uri,
