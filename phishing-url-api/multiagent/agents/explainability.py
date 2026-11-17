@@ -70,7 +70,8 @@ class ExplainabilityAgent:
         normalized_term = cls._normalize(term)
         if len(normalized_term) < 3:
             return False
-        if normalized_term in normalized_question:
+        full_term = r"(?<![a-z0-9_])" + re.escape(normalized_term) + r"(?![a-z0-9_])"
+        if re.search(full_term, normalized_question):
             return True
 
         ignored = {
@@ -168,12 +169,164 @@ class ExplainabilityAgent:
         )
 
     @classmethod
+    def _analysis_facts(cls, question: str, analysis: AnalysisResult) -> dict | None:
+        normalized_question = cls._normalize(question)
+        asks_for_probability = any(term in normalized_question for term in (
+            "cual fue la probabilidad",
+            "que significa la probabilidad",
+            "explica la probabilidad",
+            "porcentaje",
+            "nivel de probabilidad",
+        )) or (
+            "probabilidad" in normalized_question
+            and any(term in normalized_question for term in (
+                "cual",
+                "significa",
+                "explica",
+                "entiendo",
+            ))
+        )
+        asks_for_action = any(term in normalized_question for term in (
+            "que debo hacer",
+            "que hago ahora",
+            "que deberia hacer",
+            "que hago con",
+            "como procedo",
+            "puedo abrir",
+            "debo abrir",
+            "recomendacion",
+        )) or re.fullmatch(r"[¿\s]*y ahora[?!.\s]*", normalized_question)
+        asks_for_verdict = any(term in normalized_question for term in (
+            "es seguro",
+            "es segura",
+            "es peligroso",
+            "es peligrosa",
+            "puedo confiar",
+            "es phishing entonces",
+        ))
+        asks_for_analyzed_url = any(term in normalized_question for term in (
+            "cual fue la url",
+            "que url analizaste",
+            "url analizada",
+            "url que analizaste",
+        ))
+        asks_for_threshold = any(term in normalized_question for term in (
+            "umbral aplicado",
+            "perfil aplicado",
+            "que umbral",
+            "cual umbral",
+            "supero el umbral",
+        ))
+
+        if any(term in normalized_question for term in (
+            "que modelo usaste", "que modelo utilizaste", "que modelo se uso",
+            "que modelo analiz", "cual fue el modelo",
+        )):
+            return cls._fact_response(
+                f"El último análisis utilizó {analysis.model_name or analysis.model_id}.",
+                "analysis_model_recall",
+            )
+
+        if asks_for_action:
+            probability = float(analysis.probability) * 100
+            if analysis.classification == "phishing":
+                advice = (
+                    "No abras el enlace ni ingreses datos. Si ya lo abriste, no descargues "
+                    "archivos; si entregaste credenciales, cámbialas desde el sitio oficial "
+                    "y activa autenticación multifactor."
+                )
+            else:
+                advice = (
+                    "El modelo no detectó phishing, pero verifica que el dominio sea el "
+                    "oficial antes de ingresar datos, descargar archivos o realizar pagos."
+                )
+            return cls._fact_response(
+                f"La estimación fue {probability:.1f}% de phishing. {advice}",
+                "shap_action_recommendation",
+            )
+
+        if asks_for_verdict:
+            probability = float(analysis.probability) * 100
+            if analysis.classification == "phishing":
+                verdict = (
+                    f"No conviene tratarla como segura: el modelo la clasificó como phishing "
+                    f"con {probability:.1f}% de probabilidad. Evita abrirla o entregar datos."
+                )
+            else:
+                verdict = (
+                    f"El modelo no la clasificó como phishing y estimó {probability:.1f}% de "
+                    "riesgo. Aun así, eso no garantiza que sea segura: confirma el dominio, "
+                    "el contexto del mensaje y cualquier solicitud de credenciales o pago."
+                )
+            return cls._fact_response(verdict, "shap_safety_verdict")
+
+        if asks_for_analyzed_url:
+            return cls._fact_response(
+                f"La URL del último análisis en esta conversación fue: {analysis.url}",
+                "analysis_url_recall",
+            )
+
+        if asks_for_threshold:
+            profile_label = {
+                "aggressive": "Agresivo",
+                "balanced": "Equilibrado",
+                "passive": "Pasivo",
+            }.get(analysis.sensitivity_profile, "Equilibrado")
+            comparison = (
+                "alcanzó o superó el umbral" if analysis.classification == "phishing"
+                else "quedó por debajo del umbral"
+            )
+            return cls._fact_response(
+                (
+                    f"En ese análisis se aplicó el perfil {profile_label}, con un "
+                    f"umbral de {analysis.effective_threshold * 100:.1f}%. La "
+                    f"probabilidad calculada fue {analysis.probability * 100:.1f}% y "
+                    f"{comparison}. La etiqueta final fue "
+                    f"{'phishing' if analysis.classification == 'phishing' else 'no phishing'}. "
+                    "El perfil determina el umbral que se aplica a la probabilidad del modelo."
+                ),
+                "sensitivity_threshold_explanation",
+            )
+
+        if asks_for_probability:
+            probability = float(analysis.probability) * 100
+            base = analysis.shap_explanation.get("base_probability")
+            reference = (
+                f" La explicación usó una referencia de {float(base) * 100:.1f}%."
+                if base is not None and analysis.shap_explanation.get("available")
+                else ""
+            )
+            return cls._fact_response(
+                (
+                    f"La probabilidad estimada de phishing fue {probability:.1f}%. "
+                    f"La alternativa no phishing corresponde a {100 - probability:.1f}%."
+                    f"{reference} El modelo comparó la estimación con el umbral configurado."
+                ),
+                "shap_probability_explanation",
+            )
+
+        return None
+
+    @staticmethod
+    def _fact_response(answer: str, generation_mode: str) -> dict:
+        return {
+            "answer": answer,
+            "sources": ["Resultado del clasificador"],
+            "model": None,
+            "generation_mode": generation_mode,
+        }
+
+    @classmethod
     def _targeted_shap_answer(
         cls,
         question: str,
         analysis: AnalysisResult,
         decision: DecisionResult | None = None,
     ) -> dict | None:
+        facts = cls._analysis_facts(question, analysis)
+        if facts is not None:
+            return facts
+
         shap_data = analysis.shap_explanation
         if not shap_data.get("available"):
             return None
@@ -236,21 +389,6 @@ class ExplainabilityAgent:
             "razon de",
             "que hizo que",
         ))
-        asks_for_probability = any(term in normalized_question for term in (
-            "cual fue la probabilidad",
-            "que significa la probabilidad",
-            "explica la probabilidad",
-            "porcentaje",
-            "nivel de probabilidad",
-        )) or (
-            "probabilidad" in normalized_question
-            and any(term in normalized_question for term in (
-                "cual",
-                "significa",
-                "explica",
-                "entiendo",
-            ))
-        )
         asks_for_directions = any(term in normalized_question for term in (
             "aumentaron",
             "redujeron",
@@ -260,36 +398,6 @@ class ExplainabilityAgent:
         )) or (
             "aument" in normalized_question and "redu" in normalized_question
         )
-        asks_for_action = any(term in normalized_question for term in (
-            "que debo hacer",
-            "que deberia hacer",
-            "que hago con",
-            "como procedo",
-            "puedo abrir",
-            "debo abrir",
-            "recomendacion",
-        ))
-        asks_for_verdict = any(term in normalized_question for term in (
-            "es seguro",
-            "es segura",
-            "es peligroso",
-            "es peligrosa",
-            "puedo confiar",
-            "es phishing entonces",
-        ))
-        asks_for_analyzed_url = any(term in normalized_question for term in (
-            "cual fue la url",
-            "que url analizaste",
-            "url analizada",
-            "url que analizaste",
-        ))
-        asks_for_threshold = any(term in normalized_question for term in (
-            "umbral aplicado",
-            "perfil aplicado",
-            "que umbral",
-            "cual umbral",
-            "supero el umbral",
-        ))
         definition_terms = (
             "que significa",
             "a que se refiere",
@@ -336,15 +444,33 @@ class ExplainabilityAgent:
                     f"{factor.get('display_name', factor.get('feature'))} "
                     f"{operation} {abs(value) * 100:.1f} puntos"
                 )
-            base = float(shap_data.get("base_probability", 0)) * 100
+            base_probability = shap_data.get("base_probability")
+            if base_probability is None:
+                return cls._fact_response(
+                    "El explicador comparó cuánto cambia la estimación al retirar señales. "
+                    "Los puntos expresan cambios en la escala de probabilidad del modelo.",
+                    "feature_points_explanation",
+                )
+            base = float(base_probability) * 100
             final = float(analysis.probability) * 100
+            explained_scope = (
+                "las ramas del ensamble" if shap_data.get("feature_factor_scope") == "branch_diagnostics"
+                else "las características"
+            )
+            if explained_scope == "las ramas del ensamble":
+                examples = [
+                    f"{factor.get('display_name', factor.get('feature'))} "
+                    f"{'sumó' if factor.get('shap_value', 0) > 0 else 'restó'} "
+                    f"{abs(float(factor.get('shap_value', 0))) * 100:.1f} puntos"
+                    for factor in shap_data.get("top_factors", [])[:3]
+                ]
             return {
                 "answer": (
                     "Los puntos SHAP son puntos porcentuales aportados al cálculo de "
                     "la probabilidad de phishing, no una nota independiente sobre 100. "
                     f"El modelo partió de una base de {base:.1f}%; por ejemplo, "
-                    f"{'; '.join(examples)}. Al sumar las contribuciones de las "
-                    f"25 variables a la base se obtiene la probabilidad final de {final:.1f}%."
+                    f"{'; '.join(examples)}. Al sumar las contribuciones de "
+                    f"{explained_scope} a la base se obtiene la probabilidad final de {final:.1f}%."
                 ),
                 "sources": ["Resultado del clasificador", "SHAP TreeExplainer"],
                 "model": None,
@@ -440,20 +566,6 @@ class ExplainabilityAgent:
                 "shap_simple_explanation",
             )
 
-        if asks_for_probability:
-            probability = float(analysis.probability) * 100
-            base = float(shap_data.get("base_probability", 0.5)) * 100
-            return cls._shap_response(
-                (
-                    f"La probabilidad estimada de phishing fue {probability:.1f}%; "
-                    f"la alternativa no phishing corresponde a {100 - probability:.1f}%. "
-                    f"El cálculo partió de una referencia de {base:.1f}% y las variables "
-                    "SHAP aumentaron o redujeron ese valor. Es una estimación del modelo, "
-                    "no una garantía sobre el sitio."
-                ),
-                "shap_probability_explanation",
-            )
-
         if asks_for_directions:
             factors = feature_all_factors
             increasing = sorted(
@@ -481,64 +593,6 @@ class ExplainabilityAgent:
                     "El resultado final combina todas las variables, no solo estas señales."
                 ),
                 "shap_direction_summary",
-            )
-
-        if asks_for_action:
-            probability = float(analysis.probability) * 100
-            if analysis.classification == "phishing":
-                advice = (
-                    "No abras el enlace ni ingreses datos. Si ya lo abriste, no descargues "
-                    "archivos; si entregaste credenciales, cámbialas desde el sitio oficial "
-                    "y activa autenticación multifactor."
-                )
-            else:
-                advice = (
-                    "El modelo no detectó phishing, pero verifica que el dominio sea el "
-                    "oficial antes de ingresar datos, descargar archivos o realizar pagos."
-                )
-            return cls._shap_response(
-                f"La estimación fue {probability:.1f}% de phishing. {advice}",
-                "shap_action_recommendation",
-            )
-
-        if asks_for_verdict:
-            probability = float(analysis.probability) * 100
-            if analysis.classification == "phishing":
-                verdict = (
-                    f"No conviene tratarla como segura: el modelo la clasificó como phishing "
-                    f"con {probability:.1f}% de probabilidad. Evita abrirla o entregar datos."
-                )
-            else:
-                verdict = (
-                    f"El modelo no la clasificó como phishing y estimó {probability:.1f}% de "
-                    "riesgo. Aun así, eso no garantiza que sea segura: confirma el dominio, "
-                    "el contexto del mensaje y cualquier solicitud de credenciales o pago."
-                )
-            return cls._shap_response(verdict, "shap_safety_verdict")
-
-        if asks_for_analyzed_url:
-            return cls._shap_response(
-                f"La URL del último análisis en esta conversación fue: {analysis.url}",
-                "analysis_url_recall",
-            )
-
-        if asks_for_threshold:
-            profile_label = {
-                "aggressive": "Agresivo",
-                "balanced": "Equilibrado",
-                "passive": "Pasivo",
-            }.get(analysis.sensitivity_profile, "Equilibrado")
-            comparison = "superó" if analysis.classification == "phishing" else "no superó"
-            return cls._shap_response(
-                (
-                    f"En ese análisis se aplicó el perfil {profile_label}, con un "
-                    f"umbral de {analysis.effective_threshold * 100:.1f}%. La "
-                    f"probabilidad calculada fue {analysis.probability * 100:.1f}% y "
-                    f"{comparison} el umbral; por eso la clasificación final fue "
-                    f"{'phishing' if analysis.classification == 'phishing' else 'no phishing'}. "
-                    "El perfil no modificó la probabilidad ni la explicación SHAP."
-                ),
-                "sensitivity_threshold_explanation",
             )
 
         if asks_why and top_factors:
@@ -623,7 +677,7 @@ class ExplainabilityAgent:
             )
         model_label = analysis.model_name or analysis.model_id
         opening = "Sobre el análisis anterior, el" if follow_up else "El"
-        shap_method = analysis.shap_explanation.get("method", "SHAP")
+        explanation_method = analysis.shap_explanation.get("method", "Explicación del modelo")
         profile_label = {
             "aggressive": "Agresivo",
             "balanced": "Equilibrado",
@@ -642,7 +696,7 @@ class ExplainabilityAgent:
             ),
             "sources": [
                 "Resultado del clasificador",
-                f"SHAP {shap_method}",
+                *([explanation_method] if top_factors else []),
                 *(sources or []),
             ],
             "model": model,

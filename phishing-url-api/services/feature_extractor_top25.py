@@ -4,6 +4,7 @@ import ipaddress
 import re
 import socket
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -47,14 +48,17 @@ PHISH_HINTS = [
 ]
 
 
+@lru_cache(maxsize=1)
 def load_feature_names():
     return joblib.load(FEATURES_PATH)
 
 
+@lru_cache(maxsize=1)
 def load_continuous_features():
     return joblib.load(CONTINUOUS_FEATURES_PATH)
 
 
+@lru_cache(maxsize=1)
 def load_scaler():
     return joblib.load(SCALER_PATH)
 
@@ -467,7 +471,9 @@ def extract_top25_features(url: str, use_network_features: bool = True) -> pd.Da
     tokens_raw = tokenize(full_without_scheme)
     tokens_path = tokenize(path)
 
-    html, final_url, history, _status_code = fetch_html(normalized_url)
+    html, final_url, history = None, normalized_url, []
+    if use_network_features:
+        html, final_url, history, _status_code = fetch_html(normalized_url)
     soup = BeautifulSoup(html, "html.parser") if html else BeautifulSoup("", "html.parser")
 
     base_domain = get_registered_domain(final_url)

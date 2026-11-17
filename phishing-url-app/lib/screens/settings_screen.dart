@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_design.dart';
@@ -1385,30 +1386,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                         ),
                         const SizedBox(height: AppDesign.gapBetweenCards),
-                        _buildSwitchCard(
-                          isDark: isDark,
-                          icon: Icons.vibration_rounded,
-                          title: 'Vibración',
-                          subtitle: 'Alertas de riesgo',
-                          value: _hapticAlerts,
-                          onChanged: (value) async {
-                            setState(() {
-                              _hapticAlerts = value;
-                            });
+                        if (!kIsWeb) ...[
+                          _buildSwitchCard(
+                            isDark: isDark,
+                            icon: Icons.vibration_rounded,
+                            title: 'Vibración',
+                            subtitle: 'Alertas de riesgo',
+                            value: _hapticAlerts,
+                            onChanged: (value) async {
+                              setState(() {
+                                _hapticAlerts = value;
+                              });
 
-                            await _preferencesService.setHapticAlertsEnabled(
-                              value,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: AppDesign.gapBetweenCards),
+                              await _preferencesService.setHapticAlertsEnabled(
+                                value,
+                              );
+                            },
+                          ),
+                          const SizedBox(height: AppDesign.gapBetweenCards),
+                        ],
                         _buildSwitchCard(
                           isDark: isDark,
                           icon: Icons.storage_rounded,
                           title: 'Almacenamiento',
                           subtitle: _globalStorageEnabled
                               ? 'Guarda en el servidor'
-                              : 'Solo memoria temporal',
+                              : 'Historial local',
                           value: _globalStorageEnabled,
                           onChanged: (value) async {
                             await widget.onGlobalStorageChanged(value);

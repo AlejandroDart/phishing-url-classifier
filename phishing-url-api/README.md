@@ -56,6 +56,8 @@ flowchart LR
 
 El coordinador clasifica la intención y conserva el contexto. Según la consulta, el flujo puede ejecutar una predicción, explicar el último análisis, responder desde la base de conocimiento o cambiar preferencias operativas admitidas por la aplicación.
 
+Anita conserva el contexto del último análisis de la conversación para responder preguntas sobre el modelo, el umbral y las precauciones de apertura. Estas respuestas usan el resultado del clasificador, incluso si el explicador no está disponible. Si Ollama no responde a una consulta general y la búsqueda local encuentra una coincidencia suficiente, Anita devuelve un extracto de la base de conocimiento con el título de la fuente.
+
 ## Instalación
 
 ```powershell
@@ -91,12 +93,13 @@ PostgreSQL es necesario para el historial global y la memoria persistente de age
 Las migraciones incrementales se encuentran en `database/migrations`:
 
 ```powershell
+psql -U postgres -d phishing_detector -f database/migrations/000_predictions.sql
 psql -U postgres -d phishing_detector -f database/migrations/001_multiagent_memory.sql
 psql -U postgres -d phishing_detector -f database/migrations/002_prediction_model.sql
 psql -U postgres -d phishing_detector -f database/migrations/003_prediction_sensitivity.sql
 ```
 
-Las migraciones `002` y `003` asumen que la tabla base `predictions` ya existe.
+En una base nueva, aplica las migraciones en orden. La migración `000` crea la tabla base si todavía no existe. Flask puede iniciar sin PostgreSQL y ejecutar predicciones con almacenamiento global desactivado. Las rutas de estadísticas devuelven 503 si la base de datos no está disponible.
 
 ## Ejecución
 
@@ -121,10 +124,10 @@ Invoke-RestMethod http://127.0.0.1:5000/
 | `GET` | `/model/info` | Obtener métricas y metadatos | Sí |
 | `POST` | `/chat` | Consultar a Anita | Sí |
 | `GET` | `/chat/health` | Estado del subsistema conversacional | Sí |
-| `GET` | `/stats/count` | Total de análisis globales | Según despliegue |
-| `GET` | `/stats/phishing-ratio` | Proporción de phishing | Según despliegue |
-| `GET` | `/stats/recent` | Actividad reciente | Según despliegue |
-| `GET` | `/stats/daily` | Serie diaria | Según despliegue |
+| `GET` | `/stats/count` | Total de análisis globales | Sí |
+| `GET` | `/stats/phishing-ratio` | Proporción de phishing | Sí |
+| `GET` | `/stats/recent` | Actividad reciente | Sí |
+| `GET` | `/stats/daily` | Serie diaria | Sí |
 
 ## Ejemplo de predicción
 
@@ -193,6 +196,10 @@ python -m pytest -q
 La validación más reciente registró **79 pruebas aprobadas y 0 fallos**. La suite cubre rutas, validación, registro de modelos, predicción, sensibilidad, explicabilidad, memoria conversacional y coordinación multiagente.
 
 ## Seguridad y despliegue
+
+- Define `API_KEY` en el servidor. Predicción, catálogo, Anita y estadísticas requieren `X-API-KEY`. Sin una clave de servidor configurada, esas rutas rechazan el acceso. `GET /` queda disponible para comprobar el servicio.
+- `CORS_ALLOWED_ORIGINS` acepta una lista de orígenes exactos separados por comas. Si se omite, permite el navegador local en `localhost` o `127.0.0.1`. Para abrir Flutter Web en otro equipo, configura explícitamente el origen web, incluido el puerto.
+- Configura `PREDICTION_NETWORK_FEATURES=false` para medir o demostrar con URLs sintéticas sin consultar páginas, WHOIS ni servicios externos. El resultado usa señales de la URL y valores de respaldo para las señales externas.
 
 - No confirmes `.env`, claves, contraseñas ni logs con información sensible.
 - Usa HTTPS y un servidor WSGI en despliegues reales.

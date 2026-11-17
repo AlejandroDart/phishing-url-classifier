@@ -3,8 +3,8 @@
   <h1>LinkShield AI · Aplicación Flutter</h1>
   <p><strong>Cliente multiplataforma para analizar URLs, interpretar resultados y administrar preferencias de detección.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/Flutter-Android%20%7C%20Web-02569B?logo=flutter&logoColor=white" alt="Flutter">
-    <img src="https://img.shields.io/badge/Dart-%5E3.5.3-0175C2?logo=dart&logoColor=white" alt="Dart">
+    <img src="https://img.shields.io/badge/Flutter-Android%20%7C%20iOS%20%7C%20Web-02569B?logo=flutter&logoColor=white" alt="Flutter">
+    <img src="https://img.shields.io/badge/Dart-%5E3.10.0-0175C2?logo=dart&logoColor=white" alt="Dart">
     <img src="https://img.shields.io/badge/Estado-Funcional-159957" alt="Estado funcional">
   </p>
 </div>
@@ -13,15 +13,15 @@
 
 ## Descripción
 
-Este módulo contiene la interfaz de LinkShield AI para Android y navegador. La aplicación permite ingresar o capturar una URL, seleccionar el modelo de inteligencia artificial, ajustar la sensibilidad operativa y consultar una explicación comprensible del resultado.
+Este módulo contiene la interfaz de LinkShield AI para Android, iOS y navegador. La aplicación permite ingresar o capturar una URL, seleccionar el modelo de inteligencia artificial, ajustar la sensibilidad operativa y consultar una explicación comprensible del resultado.
 
-La misma base de código adapta la persistencia y ciertos flujos a cada plataforma: SQLite se utiliza en Android e IndexedDB en web.
+La misma base de código adapta la persistencia y ciertos flujos a cada plataforma: SQLite se utiliza en Android e iOS, e IndexedDB en web.
 
 ## Funcionalidades
 
 - Escaneo manual de URLs.
 - Captura visual y extracción de enlaces mediante OCR.
-- Recepción de enlaces compartidos desde otras aplicaciones.
+- Recepción de enlaces compartidos desde otras aplicaciones en Android. En iOS y web se puede pegar el enlace en el escáner.
 - Selección entre 14 modelos registrados en la API.
 - Perfiles de sensibilidad: agresivo, equilibrado y pasivo.
 - Resultado con probabilidad, etiqueta, umbral, modelo y factores principales.
@@ -60,10 +60,10 @@ lib/
 
 ## Requisitos
 
-- Flutter SDK.
-- Dart `^3.5.3`.
+- Flutter 3.38 o superior y Dart `^3.10.0`.
 - Chrome o Edge para desarrollo web.
-- Android SDK y un dispositivo/emulador para Android.
+- Android SDK, JDK 17 y un dispositivo o emulador para Android.
+- Xcode completo y CocoaPods para iOS. El objetivo mínimo del proyecto es iOS 15.0.
 - API de LinkShield AI en ejecución.
 
 ## Configuración
@@ -86,6 +86,18 @@ cd C:\phishing-url-classifier\phishing-url-app
 flutter pub get
 ```
 
+### iOS
+
+Con Xcode y CocoaPods configurados, abre un simulador o conecta un iPhone. Ejecuta desde este módulo:
+
+```bash
+flutter pub get
+flutter devices
+flutter run -d ID_IOS --dart-define-from-file=.vscode/api.local.json
+```
+
+El iPhone debe poder llegar a la API. Configura su dirección en `api.local.json` y usa un certificado HTTPS confiable para la distribución. En una prueba de red local, iOS solicita autorización para acceder al servidor. La cámara se prueba en un iPhone físico.
+
 ### Navegador
 
 ```powershell
@@ -93,6 +105,8 @@ flutter run -d chrome `
   --dart-define=API_BASE_URL=http://127.0.0.1:5000 `
   --dart-define=API_KEY=CLAVE_LOCAL
 ```
+
+El escaneo visual permite seleccionar una imagen y ofrece captura en los navegadores móviles que la admiten. La lectura se ejecuta dentro del navegador. El primer uso carga el motor y el idioma OCR desde jsDelivr. El cliente usa la compilación JavaScript de Flutter Web.
 
 ### Servidor web en la red local
 

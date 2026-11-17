@@ -24,6 +24,22 @@ FOLLOW_UP_TERMS = (
     "peligros",
     "es seguro",
     "es segura",
+    "es peligroso",
+    "es peligrosa",
+    "puedo abrir",
+    "debo abrir",
+    "lo puedo abrir",
+    "puedo confiar",
+    "que debo hacer",
+    "que hago ahora",
+    "que hago con",
+    "como procedo",
+    "que modelo usaste",
+    "que modelo utilizaste",
+    "que modelo se uso",
+    "que modelo analiz",
+    "cual fue el modelo",
+    "porcentaje",
     "que tan seguro",
     "que tan segura",
     "seguridad de esa url",
@@ -47,6 +63,8 @@ FOLLOW_UP_TERMS = (
     "cual fue la url",
     "umbral aplicado",
     "perfil aplicado",
+    "que umbral",
+    "cual umbral",
     "por que supero el umbral",
 )
 
@@ -182,8 +200,15 @@ class CoordinatorAgent:
             return None
         candidate = match.group("url").rstrip(".,;:!?)]}")
         normalized = candidate if "://" in candidate else f"https://{candidate}"
-        parsed = urlparse(normalized)
-        return normalized if parsed.hostname else None
+        try:
+            parsed = urlparse(normalized)
+            _ = parsed.port
+        except ValueError:
+            return None
+
+        if not parsed.hostname or parsed.username is not None:
+            return None
+        return normalized
 
     def identify_intent(
         self,
@@ -218,8 +243,20 @@ class CoordinatorAgent:
         if any(phrase in normalized for phrase in general_process_phrases):
             return Intent.GENERAL_QUERY
 
+        general_question = re.match(
+            r"^[¿\s]*(?:que (?:es|son)|como (?:puedo )?(?:reducir|prevenir|evitar|detectar)) "
+            r"(?:(?:el|la|los|las|un|una) )?"
+            r"(?:riesgo(?:s)? de phishing|riesgo(?:s)? en internet|phishing)\b",
+            normalized,
+        )
+        if general_question:
+            return Intent.GENERAL_QUERY
+
         follow_up_terms = (*FOLLOW_UP_TERMS, *FEATURE_FOLLOW_UP_TERMS)
-        if has_previous_analysis and any(term in normalized for term in follow_up_terms):
+        if has_previous_analysis and (
+            any(term in normalized for term in follow_up_terms)
+            or re.fullmatch(r"[¿\s]*y ahora[?!.\s]*", normalized)
+        ):
             return Intent.ANALYSIS_FOLLOW_UP
 
         return Intent.GENERAL_QUERY

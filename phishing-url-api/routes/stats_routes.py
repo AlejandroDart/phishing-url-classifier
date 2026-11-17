@@ -1,4 +1,6 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, current_app, jsonify
+from psycopg2 import Error
+from psycopg2.pool import PoolError
 
 from database.stats_repository import (
     get_total_analysis,
@@ -8,6 +10,13 @@ from database.stats_repository import (
 )
 
 stats_bp = Blueprint("stats", __name__)
+
+
+@stats_bp.errorhandler(Error)
+@stats_bp.errorhandler(PoolError)
+def stats_unavailable(error):
+    current_app.logger.warning("Statistics unavailable: %s", type(error).__name__)
+    return jsonify({"error": "Estadísticas globales temporalmente no disponibles"}), 503
 
 
 @stats_bp.route("/stats/count", methods=["GET"])

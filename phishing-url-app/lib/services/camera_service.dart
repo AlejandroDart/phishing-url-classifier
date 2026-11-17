@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import '../screens/camera_screen.dart';
+import '../screens/camera_screen.dart'
+    if (dart.library.js_interop) '../screens/camera_screen_web.dart';
 
 class CameraUrlService {
   static const String cancelledResult = '__CANCELLED__';
@@ -7,9 +8,7 @@ class CameraUrlService {
   Future<String?> takePictureAndExtractUrl(BuildContext context) async {
     final result = await Navigator.push<String>(
       context,
-      MaterialPageRoute(
-        builder: (_) => const CameraScreen(),
-      ),
+      MaterialPageRoute(builder: (_) => const CameraScreen()),
     );
 
     return result;

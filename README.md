@@ -3,7 +3,7 @@
   <h1>LinkShield AI</h1>
   <p><strong>Plataforma inteligente, explicable y multiplataforma para analizar URLs y detectar phishing.</strong></p>
   <p>
-    <img src="https://img.shields.io/badge/Flutter-Android%20%7C%20Web-02569B?logo=flutter&logoColor=white" alt="Flutter">
+    <img src="https://img.shields.io/badge/Flutter-Android%20%7C%20iOS%20%7C%20Web-02569B?logo=flutter&logoColor=white" alt="Flutter">
     <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python">
     <img src="https://img.shields.io/badge/API-Flask-000000?logo=flask&logoColor=white" alt="Flask">
     <img src="https://img.shields.io/badge/Modelos-14-0EA5E9" alt="14 modelos">
@@ -28,7 +28,7 @@ El sistema está organizado como una arquitectura cliente-servidor: una aplicaci
 - Modelo recomendado `LinkShield Hybrid Ensemble` con F1-score de **95.00 %**.
 - Explicabilidad adaptada a cada familia: SHAP, permutación, oclusión de caracteres y reglas auditables.
 - Perfiles de sensibilidad agresivo, equilibrado y pasivo sin alterar la probabilidad del modelo.
-- Historial local con SQLite en Android e IndexedDB en navegador.
+- Historial local con SQLite en Android e iOS e IndexedDB en navegador.
 - Almacenamiento global opcional y condicionado por consentimiento.
 - Dashboard, métricas, matriz de confusión e información del modelo activo.
 - Asistente Anita con arquitectura multiagente, RAG y soporte local mediante Ollama.
@@ -38,7 +38,7 @@ El sistema está organizado como una arquitectura cliente-servidor: una aplicaci
 
 ```mermaid
 flowchart LR
-    U["Usuario"] --> A["Aplicación Flutter<br/>Android y Web"]
+    U["Usuario"] --> A["Aplicación Flutter<br/>Android, iOS y web"]
     A -->|"JSON + X-API-KEY"| B["API REST Flask"]
     B --> R["Registro de 14 modelos"]
     R --> H["Ensamble híbrido"]
@@ -55,7 +55,7 @@ flowchart LR
 |---|---|---|
 | `phishing-url-ai` | Datos, entrenamiento, evaluación y exportación de modelos | [Modelos de IA](phishing-url-ai/README.md) |
 | `phishing-url-api` | Inferencia, explicabilidad, persistencia y sistema multiagente | [API REST](phishing-url-api/README.md) |
-| `phishing-url-app` | Aplicación Flutter para Android y navegador | [Aplicación](phishing-url-app/README.md) |
+| `phishing-url-app` | Aplicación Flutter para Android, iOS y navegador | [Aplicación](phishing-url-app/README.md) |
 
 ## Modelo recomendado
 
@@ -84,7 +84,7 @@ Para retomar el desarrollo en otro equipo o iniciar un nuevo chat, consulta el [
 ### Requisitos
 
 - Python 3.12.
-- Flutter SDK compatible con Dart `^3.5.3`.
+- Flutter 3.38 o superior y Dart `^3.10.0`.
 - PostgreSQL para persistencia global opcional.
 - Ollama para respuestas generativas locales opcionales.
 
@@ -134,7 +134,7 @@ flutter analyze
 flutter test
 ```
 
-La validación más reciente del proyecto registró **79 pruebas backend** y **15 pruebas Flutter** aprobadas.
+La validación de la semana 7 registró **105 pruebas backend**, **15 pruebas Flutter** y una prueba de persistencia IndexedDB ejecutada en Chrome. Se ejecutaron además 14 comprobaciones de aceptación técnica con cinco perfiles de prueba. En Chrome se verificó el flujo de selección de imagen, extracción OCR y análisis mediante la API. La revisión de los cambios nativos de cámara y OCR sigue abierta para Android e iOS. Los requisitos de cada plataforma están en la [guía de la aplicación](phishing-url-app/README.md).
 
 ## Privacidad y seguridad
 

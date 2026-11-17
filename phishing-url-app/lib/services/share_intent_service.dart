@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class ShareIntentService {
@@ -8,7 +9,11 @@ class ShareIntentService {
     'detector_url/shared_text',
   );
 
+  bool get _supportsShareIntent =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
   Future<void> initialize(ValueChanged<String> onSharedText) async {
+    if (!_supportsShareIntent) return;
     _channel.setMethodCallHandler((call) async {
       if (call.method != 'onSharedText') return;
 
@@ -32,9 +37,12 @@ class ShareIntentService {
     }
   }
 
-  void dispose() => _channel.setMethodCallHandler(null);
+  void dispose() {
+    if (_supportsShareIntent) _channel.setMethodCallHandler(null);
+  }
 
   Future<void> setThemeMode(bool isDark) async {
+    if (!_supportsShareIntent) return;
     try {
       await _channel.invokeMethod<void>('setThemeMode', {'isDark': isDark});
     } on MissingPluginException {

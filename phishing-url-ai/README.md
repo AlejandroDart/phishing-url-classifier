@@ -61,6 +61,9 @@ Las ramas tabulares procesan 25 características léxicas, estructurales, de dom
 | `09_modelos_deep_learning_top25.ipynb` | MLP tabulares |
 | `10_modelos_deep_learning_secuencial.ipynb` | CNN 1D, GRU y BiLSTM por caracteres |
 | `11_modelo_hibrido_ml_dl_heuristicas.ipynb` | Calibración y exportación del ensamble híbrido |
+| [`12_auditoria_modelos_exportados.ipynb`](12_auditoria_modelos_exportados.ipynb) | Auditoría de solo lectura sobre métricas, particiones y artefactos exportados |
+
+El notebook 12 puede ejecutarse por separado con los artefactos ya exportados. Contrasta el ensamble con su rama Random Forest en la misma partición de 2.286 URLs, recalcula métricas a partir de matrices de confusión y revisa el inventario de artefactos. La rama Random Forest y el modelo independiente Random Forest Top 25 tienen resultados propios.
 
 ## Catálogo de modelos
 
@@ -153,7 +156,7 @@ El registro unificado que consume la API se genera a partir de estos manifiestos
 
 1. Crea un entorno de Python 3.12.
 2. Instala las dependencias definidas en `../phishing-url-api/requirements.txt`.
-3. Ejecuta los notebooks en orden numérico.
+3. Para regenerar los experimentos, ejecuta los notebooks 01 a 11 en orden numérico. Para auditar los resultados exportados, abre directamente el notebook 12.
 4. Verifica que las particiones y semillas se conserven.
 5. Sincroniza el registro unificado con el script correspondiente.
 6. Ejecuta las pruebas de la API antes de sustituir artefactos en producción.

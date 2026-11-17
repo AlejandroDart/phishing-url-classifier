@@ -8,6 +8,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 import logging
+import re
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 logging.getLogger("absl").setLevel(logging.ERROR)
 
@@ -17,6 +18,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from routes.access import require_api_key
 from routes.chatbot_routes import chatbot_bp
 from routes.prediction_routes import prediction_bp
 from routes.stats_routes import stats_bp
@@ -24,11 +26,23 @@ from routes.stats_routes import stats_bp
 
 app = Flask(__name__)
 
-CORS(app)
+app.config["API_KEY"] = os.getenv("API_KEY", "").strip()
+app.config["PREDICTION_NETWORK_FEATURES"] = (
+    os.getenv("PREDICTION_NETWORK_FEATURES", "true").lower() == "true"
+)
 
-app.register_blueprint(prediction_bp)
-app.register_blueprint(stats_bp)
-app.register_blueprint(chatbot_bp)
+origins = os.getenv("CORS_ALLOWED_ORIGINS")
+allowed_origins = (
+    [re.compile(r"^https?://(?:localhost|127\.0\.0\.1)(?::\d+)?$")]
+    if origins is None
+    else [re.compile(r"^" + re.escape(origin.strip()) + r"$")
+          for origin in origins.split(",") if origin.strip()]
+)
+CORS(app, origins=allowed_origins, allow_headers=["Content-Type", "X-API-KEY"])
+
+for blueprint in (prediction_bp, stats_bp, chatbot_bp):
+    blueprint.before_request(require_api_key)
+    app.register_blueprint(blueprint)
 
 
 @app.route("/")

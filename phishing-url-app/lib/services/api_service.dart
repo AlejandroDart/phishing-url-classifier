@@ -18,11 +18,12 @@ class ApiConfig {
   static String get baseUrl {
     if (kReleaseMode &&
         !kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.android) {
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS)) {
       final uri = Uri.tryParse(_configuredBaseUrl);
       if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
         throw StateError(
-            'Configura API_BASE_URL con HTTPS para Android release.');
+            'Configura API_BASE_URL con HTTPS para la compilación móvil de distribución.');
       }
     }
     return _configuredBaseUrl;

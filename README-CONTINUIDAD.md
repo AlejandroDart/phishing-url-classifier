@@ -31,10 +31,12 @@
 
    Para iniciar con `F5` de forma habitual, agrega `"dart.flutterRunAdditionalArgs": ["--dart-define-from-file=.vscode/api.local.json"]` a los ajustes de la carpeta en VS Code. No hace falta crear un perfil de lanzamiento.
 
-PostgreSQL se configura aparte para estadísticas y persistencia global. Si el teléfono llega a la API pero no carga los modelos, revisa que ambas claves coincidan. Si cambias la IP o la clave, detén y vuelve a ejecutar la app. Android `release` requiere HTTPS.
+PostgreSQL se configura aparte para estadísticas y persistencia global. El cliente envía la clave también para las estadísticas. Si sirves Flutter Web por la red local, configura `CORS_ALLOWED_ORIGINS` en Flask con el origen exacto del sitio. Android nativo no usa CORS. Si el teléfono llega a la API pero no carga los modelos, revisa que ambas claves coincidan. Si cambias la IP o la clave, detén y vuelve a ejecutar la app. Android `release` requiere HTTPS.
+
+Para iOS y web, sigue la [guía por plataforma](phishing-url-app/README.md). El corte de semana 7 incluye OCR en Chrome, el objetivo mínimo de iOS 15.0 y código de OCR nativo para iOS y Android. La compilación y prueba de esos cambios nativos requiere Xcode o el SDK de Android, según la plataforma.
 
 ## Retomar en un chat nuevo
 
-> Estoy continuando LinkShield AI desde `main`. Lee este README y revisa `git status` antes de editar. Los últimos cambios fueron visuales, en Preferencias y Anita; la lógica de predicción y los umbrales se mantuvieron. La configuración de pruebas es local de cada PC y no se sube a GitHub.
+> Estoy continuando LinkShield AI desde `main`. Lee este README y revisa `git status` antes de editar. En el corte de semana 7 se reforzaron el contrato de la API, los seguimientos de Anita y el soporte de OCR. Los modelos exportados y sus umbrales se conservaron. La configuración local de pruebas se mantiene fuera del repositorio.
 
 [Tablero del proyecto](https://github.com/users/AlejandroDart/projects/1) · [Cronograma Gantt](https://github.com/users/AlejandroDart/projects/1/views/5)

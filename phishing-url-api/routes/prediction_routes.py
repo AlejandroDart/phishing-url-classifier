@@ -1,7 +1,6 @@
-import os
 import warnings
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from services.prediction_service import prediction_service
 from services.model_info_service import ModelInfoService
@@ -11,21 +10,14 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 prediction_bp = Blueprint("prediction", __name__)
 
-API_KEY = os.getenv("API_KEY")
-def verificar_api_key():
-    api_key = request.headers.get("X-API-KEY")
-    return api_key == API_KEY
 
 
 @prediction_bp.route("/predict", methods=["POST"])
 def predict():
     try:
-        if not verificar_api_key():
-            return jsonify({"error": "Acceso no autorizado"}), 403
-
         data = request.get_json(silent=True)
 
-        if not data:
+        if not isinstance(data, dict) or not data:
             return jsonify({"error": "Body JSON invalido"}), 400
 
         url = data.get("url")
@@ -33,7 +25,7 @@ def predict():
         model_id = data.get("model_id")
         sensitivity_profile = data.get("sensitivity_profile")
 
-        if not url:
+        if not isinstance(url, str) or not url.strip():
             return jsonify({"error": "No se proporciono ninguna URL"}), 400
 
         if not isinstance(store_global, bool):
@@ -47,6 +39,7 @@ def predict():
         result = prediction_service.analyze(
             url,
             store_global=store_global,
+            use_network_features=current_app.config["PREDICTION_NETWORK_FEATURES"],
             model_id=model_id,
             sensitivity_profile=sensitivity_profile,
         )
@@ -55,17 +48,15 @@ def predict():
     except (UnknownModelError, ValueError) as error:
         return jsonify({"error": str(error)}), 400
     except Exception as error:
-        return jsonify({"error": str(error)}), 500
+        current_app.logger.error("Prediction failed: %s", type(error).__name__)
+        return jsonify({"error": "No fue posible completar el análisis"}), 500
 
 
 @prediction_bp.route("/explain-features", methods=["POST"])
 def explain_features():
     try:
-        if not verificar_api_key():
-            return jsonify({"error": "Acceso no autorizado"}), 403
-
         data = request.get_json(silent=True)
-        if not data or not isinstance(data.get("features"), dict):
+        if not isinstance(data, dict) or not isinstance(data.get("features"), dict):
             return jsonify({"error": "Debes enviar un objeto features"}), 400
 
         model_id = data.get("model_id")
@@ -78,14 +69,12 @@ def explain_features():
     except ValueError as error:
         return jsonify({"error": str(error)}), 400
     except Exception as error:
-        return jsonify({"error": f"No fue posible calcular SHAP: {error}"}), 500
+        current_app.logger.error("Explanation failed: %s", type(error).__name__)
+        return jsonify({"error": "No fue posible calcular SHAP"}), 500
 
 
 @prediction_bp.route("/model/info", methods=["GET"])
 def model_info():
-    if not verificar_api_key():
-        return jsonify({"error": "Acceso no autorizado"}), 403
-
     try:
         runtime = model_registry.get_runtime(request.args.get("model_id"))
         return jsonify(ModelInfoService(
@@ -99,13 +88,10 @@ def model_info():
     except (FileNotFoundError, ValueError) as error:
         return jsonify({"error": str(error)}), 503
     except Exception as error:
-        return jsonify({
-            "error": f"No fue posible obtener la información del modelo: {error}"
-        }), 500
+        current_app.logger.error("Model information failed: %s", type(error).__name__)
+        return jsonify({"error": "No fue posible obtener la información del modelo"}), 500
 
 
 @prediction_bp.route("/models", methods=["GET"])
 def models():
-    if not verificar_api_key():
-        return jsonify({"error": "Acceso no autorizado"}), 403
     return jsonify(model_registry.list_models())

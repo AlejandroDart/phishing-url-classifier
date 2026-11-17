@@ -19,7 +19,8 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.3
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -32,7 +33,6 @@ dependencies:
     sdk: flutter
   percent_indicator: 4.2.3
   camera: ^0.11.0+2
-  google_mlkit_text_recognition: ^0.14.0
   permission_handler: ^11.3.1
   logger: ^2.4.0
   image_picker: ^0.8.4+3

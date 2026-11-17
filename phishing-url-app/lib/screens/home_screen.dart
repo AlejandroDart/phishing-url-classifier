@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_design.dart';
@@ -508,7 +509,7 @@ class MyHomePageState extends State<MyHomePage> {
 
   Future<void> methodAlert(bool isPhishing) async {
     try {
-      if (!_hapticAlertsEnabled) return;
+      if (kIsWeb || !_hapticAlertsEnabled) return;
 
       if (isPhishing && await Vibration.hasVibrator()) {
         Future.delayed(const Duration(milliseconds: 200), () async {
@@ -531,7 +532,7 @@ class MyHomePageState extends State<MyHomePage> {
   }
 
   void vibrateOnClear() async {
-    if (!_hapticAlertsEnabled) return;
+    if (kIsWeb || !_hapticAlertsEnabled) return;
 
     if (await Vibration.hasVibrator()) {
       if (await Vibration.hasAmplitudeControl()) {

@@ -1,24 +1,14 @@
 from psycopg2.extras import RealDictCursor
-from database.db import get_connection, release_connection
+from database.db import database_cursor
 
 
 def get_total_analysis():
-    connection = get_connection()
-    cursor = connection.cursor()
-
-    cursor.execute("SELECT COUNT(*) FROM predictions")
-    total = cursor.fetchone()[0]
-
-    cursor.close()
-    release_connection(connection)
-
-    return total
+    with database_cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM predictions")
+        return cursor.fetchone()[0]
 
 
 def get_phishing_ratio():
-    connection = get_connection()
-    cursor = connection.cursor()
-
     query = """
         SELECT
             SUM(CASE WHEN label = 'phishing' THEN 1 ELSE 0 END) AS phishing,
@@ -26,11 +16,9 @@ def get_phishing_ratio():
         FROM predictions
     """
 
-    cursor.execute(query)
-    phishing, total = cursor.fetchone()
-
-    cursor.close()
-    release_connection(connection)
+    with database_cursor() as cursor:
+        cursor.execute(query)
+        phishing, total = cursor.fetchone()
 
     if total == 0:
         return 0
@@ -39,9 +27,6 @@ def get_phishing_ratio():
 
 
 def get_recent_predictions(limit=5):
-    connection = get_connection()
-    cursor = connection.cursor(cursor_factory=RealDictCursor)
-
     query = """
         SELECT url, label, probability, explanation, model_id,
                sensitivity_profile, base_threshold, effective_threshold,
@@ -51,19 +36,12 @@ def get_recent_predictions(limit=5):
         LIMIT %s
     """
 
-    cursor.execute(query, (limit,))
-    results = cursor.fetchall()
-
-    cursor.close()
-    release_connection(connection)
-
-    return results
+    with database_cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(query, (limit,))
+        return cursor.fetchall()
 
 
 def get_daily_activity():
-    connection = get_connection()
-    cursor = connection.cursor(cursor_factory=RealDictCursor)
-
     query = """
         SELECT
             DATE(created_at) AS date,
@@ -74,10 +52,6 @@ def get_daily_activity():
         LIMIT 7
     """
 
-    cursor.execute(query)
-    results = cursor.fetchall()
-
-    cursor.close()
-    release_connection(connection)
-
-    return results
+    with database_cursor(cursor_factory=RealDictCursor) as cursor:
+        cursor.execute(query)
+        return cursor.fetchall()

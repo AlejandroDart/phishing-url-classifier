@@ -416,3 +416,32 @@ def test_general_feature_definition_ignores_connector_variations():
     assert result["generation_mode"] == "feature_knowledge_definition"
     assert result["answer"].startswith("Proporción de números en la URL")
     assert "no demuestra" in result["answer"]
+
+
+def test_last_analysis_facts_are_available_without_shap():
+    from dataclasses import replace
+
+    analysis = replace(make_detailed_analysis(), shap_explanation={"available": False})
+    probability = ExplainabilityAgent._targeted_shap_answer("¿Cuál fue la probabilidad?", analysis)
+    model = ExplainabilityAgent._targeted_shap_answer("¿Qué modelo usaste?", analysis)
+    action = ExplainabilityAgent._targeted_shap_answer("¿Y ahora?", analysis)
+
+    assert "15.3%" in probability["answer"]
+    assert model["generation_mode"] == "analysis_model_recall"
+    assert analysis.model_name in model["answer"]
+    assert "verifica que el dominio" in action["answer"]
+    assert probability["sources"] == ["Resultado del clasificador"]
+
+
+def test_character_explanation_without_baseline_handles_points():
+    from dataclasses import replace
+
+    analysis = replace(make_detailed_analysis(), shap_explanation={
+        "available": True,
+        "method": "CharacterOcclusion",
+        "base_probability": None,
+    })
+    reply = ExplainabilityAgent._targeted_shap_answer("¿Qué significan los puntos?", analysis)
+
+    assert reply["generation_mode"] == "feature_points_explanation"
+    assert "retirar señales" in reply["answer"]

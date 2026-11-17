@@ -115,3 +115,26 @@ def test_general_cybersecurity_question_is_not_confused_with_safety_follow_up():
     assert agent.identify_intent(
         "¿Entonces es seguro?", True
     ) == Intent.ANALYSIS_FOLLOW_UP
+
+
+def test_short_follow_ups_reuse_the_last_analysis():
+    agent = CoordinatorAgent()
+
+    for question in ("¿Y ahora?", "¿Lo puedo abrir?", "¿Qué modelo usaste?"):
+        assert agent.identify_intent(question, True) == Intent.ANALYSIS_FOLLOW_UP
+        assert agent.identify_intent(question, False) == Intent.GENERAL_QUERY
+
+
+def test_general_prevention_question_does_not_reuse_analysis():
+    agent = CoordinatorAgent()
+
+    assert agent.identify_intent(
+        "¿Cómo puedo reducir el riesgo de phishing?", True
+    ) == Intent.GENERAL_QUERY
+
+
+def test_invalid_port_or_credentials_do_not_trigger_analysis():
+    agent = CoordinatorAgent()
+
+    assert agent.extract_url("https://example.test:70000") is None
+    assert agent.extract_url("https://usuario@example.test/") is None

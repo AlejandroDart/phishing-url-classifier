@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from itertools import combinations
@@ -404,10 +405,13 @@ class PredictionService:
         url: str,
         *,
         store_global: bool = False,
-        use_network_features: bool = True,
+        use_network_features: bool | None = None,
         model_id: str | None = None,
         sensitivity_profile: str | None = None,
     ) -> PredictionResult:
+        if use_network_features is None:
+            use_network_features = os.getenv("PREDICTION_NETWORK_FEATURES", "true").lower() == "true"
+
         runtime = self._runtime(model_id)
         needs_top25 = runtime.runtime_type in {"sklearn", "keras_tabular", "hybrid"}
         raw_features = None

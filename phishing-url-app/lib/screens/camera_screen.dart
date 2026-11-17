@@ -1,9 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter/services.dart';
 import 'package:image/image.dart' as img;
 
 import '../services/camera_service.dart';
@@ -20,7 +19,7 @@ class CameraScreen extends StatefulWidget {
 class _CameraScreenState extends State<CameraScreen>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CameraController? controller;
-  final TextRecognizer textRecognizer = TextRecognizer();
+  static const _ocr = MethodChannel('detector_url/ocr');
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnimation;
@@ -29,6 +28,7 @@ class _CameraScreenState extends State<CameraScreen>
 
   bool isProcessing = false;
   bool _isInitializing = false;
+  bool _cameraForeground = true;
   String? _cameraError;
 
   final GlobalKey _cameraLayoutKey = GlobalKey();
@@ -46,10 +46,15 @@ class _CameraScreenState extends State<CameraScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused) {
-      controller?.dispose();
-      controller = null;
-    } else if (state == AppLifecycleState.resumed && controller == null) {
-      initCamera();
+      _cameraForeground = false;
+      final previous = controller;
+      if (previous != null) {
+        setState(() => controller = null);
+        previous.dispose();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      _cameraForeground = true;
+      if (controller == null) initCamera();
     }
   }
 
@@ -69,14 +74,8 @@ class _CameraScreenState extends State<CameraScreen>
       duration: const Duration(milliseconds: 900),
     );
 
-    _pulseAnimation = Tween<double>(
-      begin: 1.0,
-      end: 1.12,
-    ).animate(
-      CurvedAnimation(
-        parent: _pulseController,
-        curve: Curves.easeInOut,
-      ),
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.12).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
 
     _pulseController.repeat(reverse: true);
@@ -93,20 +92,19 @@ class _CameraScreenState extends State<CameraScreen>
     _messenger?.showSnackBar(
       SnackBar(
         duration: const Duration(seconds: 2),
-        content: Text(
-          message,
-          textAlign: TextAlign.center,
-        ),
+        content: Text(message, textAlign: TextAlign.center),
       ),
     );
   }
 
   Future<void> initCamera() async {
-    if (_isInitializing) return;
+    if (!mounted || !_cameraForeground || _isInitializing) return;
     _isInitializing = true;
-    if (mounted) setState(() => _cameraError = null);
+    setState(() => _cameraError = null);
+    CameraController? candidate;
     try {
       final cameras = await availableCameras();
+      if (!mounted || !_cameraForeground) return;
       if (cameras.isEmpty) {
         throw CameraException('no_camera', 'No camera available');
       }
@@ -115,33 +113,42 @@ class _CameraScreenState extends State<CameraScreen>
         orElse: () => cameras.first,
       );
 
-      controller = CameraController(
+      final next = CameraController(
         camera,
         ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.jpeg,
       );
 
-      await controller!.initialize();
+      candidate = next;
+      await next.initialize();
+      if (!mounted || !_cameraForeground) return;
+
       try {
-        await controller!.setFlashMode(FlashMode.off);
-        await controller!.setFocusMode(FocusMode.auto);
-        await controller!.setExposureMode(ExposureMode.auto);
+        await next.setFlashMode(FlashMode.off);
+        await next.setFocusMode(FocusMode.auto);
+        await next.setExposureMode(ExposureMode.auto);
       } catch (_) {
         // Camera drivers may omit manual focus or exposure controls.
       }
 
-      if (mounted) {
-        setState(() {});
-      }
+      if (!mounted || !_cameraForeground) return;
+      setState(() => controller = next);
+      candidate = null;
     } catch (e) {
       debugPrint('Error inicializando cámara: $e');
-      _showSnackBar('No se pudo inicializar la cámara');
-      if (mounted) {
+      if (mounted && _cameraForeground) {
         setState(() => _cameraError = 'No se pudo acceder a la cámara');
       }
     } finally {
+      await candidate?.dispose();
       _isInitializing = false;
+      if (mounted &&
+          _cameraForeground &&
+          controller == null &&
+          _cameraError == null) {
+        initCamera();
+      }
     }
   }
 
@@ -232,8 +239,12 @@ class _CameraScreenState extends State<CameraScreen>
   }
 
   Future<void> captureAndScan() async {
-    if (isProcessing) return;
-    if (controller == null || !controller!.value.isInitialized) return;
+    final activeCamera = controller;
+    if (isProcessing ||
+        activeCamera == null ||
+        !activeCamera.value.isInitialized) {
+      return;
+    }
 
     _clearSnackBars();
 
@@ -246,31 +257,32 @@ class _CameraScreenState extends State<CameraScreen>
     File? imageFile;
     File? croppedFile;
     try {
-      final XFile picture = await controller!.takePicture();
+      final XFile picture = await activeCamera.takePicture();
       imageFile = File(picture.path);
+      if (!mounted || controller != activeCamera) return;
 
       croppedFile = await cropImageToScanArea(imageFile);
       String? detectedUrl;
       for (final file in <File?>[croppedFile, imageFile]) {
         if (file == null || detectedUrl != null) continue;
-        final inputImage = InputImage.fromFile(file);
-        final recognizedText = await textRecognizer.processImage(inputImage);
-        detectedUrl = OcrUrlExtractor.extract(recognizedText.text);
+        if (!mounted || controller != activeCamera) return;
+        final text = await _ocr.invokeMethod<String>('recognize', file.path);
+        detectedUrl = OcrUrlExtractor.extract(text ?? '');
       }
 
+      if (!mounted || controller != activeCamera) return;
       if (detectedUrl != null) {
         _clearSnackBars();
-
-        if (mounted) {
-          Navigator.pop(context, detectedUrl);
-        }
+        Navigator.pop(context, detectedUrl);
         return;
       }
 
       _showSnackBar('No se detectó ninguna URL válida');
     } catch (e) {
       debugPrint('Error OCR: $e');
-      _showSnackBar('Ocurrió un error al analizar la imagen');
+      if (mounted && controller == activeCamera) {
+        _showSnackBar('Ocurrió un error al analizar la imagen');
+      }
     } finally {
       for (final file in <File?>[croppedFile, imageFile]) {
         if (file == null) continue;
@@ -279,12 +291,7 @@ class _CameraScreenState extends State<CameraScreen>
         } catch (_) {}
       }
       if (mounted) {
-        setState(() {
-          isProcessing = false;
-        });
-      }
-
-      if (!_pulseController.isAnimating) {
+        setState(() => isProcessing = false);
         _pulseController.repeat(reverse: true);
       }
     }
@@ -300,13 +307,12 @@ class _CameraScreenState extends State<CameraScreen>
     _clearSnackBars();
     WidgetsBinding.instance.removeObserver(this);
     controller?.dispose();
-    textRecognizer.close();
     _pulseController.dispose();
     super.dispose();
   }
 
-  Widget _buildCameraPreview() {
-    final previewSize = controller!.value.previewSize!;
+  Widget _buildCameraPreview(CameraController camera) {
+    final previewSize = camera.value.previewSize!;
 
     final previewWidth = previewSize.height;
     final previewHeight = previewSize.width;
@@ -330,7 +336,7 @@ class _CameraScreenState extends State<CameraScreen>
             child: SizedBox(
               width: previewWidth * scale,
               height: previewHeight * scale,
-              child: CameraPreview(controller!),
+              child: CameraPreview(camera),
             ),
           ),
         );
@@ -340,7 +346,8 @@ class _CameraScreenState extends State<CameraScreen>
 
   @override
   Widget build(BuildContext context) {
-    if (controller == null || !controller!.value.isInitialized) {
+    final camera = controller;
+    if (camera == null || !camera.value.isInitialized) {
       return Scaffold(
         backgroundColor: Colors.black,
         body: Center(
@@ -383,8 +390,10 @@ class _CameraScreenState extends State<CameraScreen>
     }
 
     final scanWidth =
-        (MediaQuery.sizeOf(context).width - (AppDesign.gapSection * 2))
-            .clamp(240.0, AppDesign.cameraFrameMaxWidth);
+        (MediaQuery.sizeOf(context).width - (AppDesign.gapSection * 2)).clamp(
+          240.0,
+          AppDesign.cameraFrameMaxWidth,
+        );
 
     return PopScope(
       canPop: false,
@@ -398,7 +407,7 @@ class _CameraScreenState extends State<CameraScreen>
           children: [
             Positioned.fill(
               key: _cameraLayoutKey,
-              child: _buildCameraPreview(),
+              child: _buildCameraPreview(camera),
             ),
             Positioned.fill(
               child: CustomPaint(
@@ -414,13 +423,8 @@ class _CameraScreenState extends State<CameraScreen>
                 width: scanWidth,
                 height: AppDesign.cameraFrameHeight,
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.greenAccent,
-                    width: 3,
-                  ),
-                  borderRadius: BorderRadius.circular(
-                    AppDesign.radiusControl,
-                  ),
+                  border: Border.all(color: Colors.greenAccent, width: 3),
+                  borderRadius: BorderRadius.circular(AppDesign.radiusControl),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.greenAccent.withValues(alpha: 0.45),
@@ -435,11 +439,7 @@ class _CameraScreenState extends State<CameraScreen>
               top: MediaQuery.of(context).padding.top + 8,
               left: 12,
               child: IconButton(
-                icon: const Icon(
-                  Icons.close,
-                  color: Colors.white,
-                  size: 30,
-                ),
+                icon: const Icon(Icons.close, color: Colors.white, size: 30),
                 onPressed: _closeCamera,
               ),
             ),
@@ -463,10 +463,7 @@ class _CameraScreenState extends State<CameraScreen>
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.green,
-                        border: Border.all(
-                          color: Colors.white,
-                          width: 3,
-                        ),
+                        border: Border.all(color: Colors.white, width: 3),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.green.withValues(alpha: 0.45),
@@ -509,10 +506,7 @@ class ScannerOverlayPainter extends CustomPainter {
   final double scanWidth;
   final double scanHeight;
 
-  ScannerOverlayPainter({
-    required this.scanWidth,
-    required this.scanHeight,
-  });
+  ScannerOverlayPainter({required this.scanWidth, required this.scanHeight});
 
   @override
   void paint(Canvas canvas, Size size) {

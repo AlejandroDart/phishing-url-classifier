@@ -1,29 +1,18 @@
-import os
-
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from multiagent.orchestrator import multiagent_enabled, multiagent_orchestrator
 from services.rag_service import OllamaUnavailableError, rag_service
 
 
 chatbot_bp = Blueprint("chatbot", __name__)
-API_KEY = os.getenv("API_KEY")
 MAX_QUESTION_LENGTH = 1000
 MAX_HISTORY_MESSAGES = 10
 
 
-def verificar_api_key():
-    api_key = request.headers.get("X-API-KEY")
-    return bool(API_KEY) and api_key == API_KEY
-
-
 @chatbot_bp.route("/chat", methods=["POST"])
 def chat():
-    if not verificar_api_key():
-        return jsonify({"error": "Acceso no autorizado"}), 403
-
     data = request.get_json(silent=True)
-    if not data:
+    if not isinstance(data, dict) or not data:
         return jsonify({"error": "Body JSON invalido"}), 400
 
     question = data.get("question")
@@ -88,14 +77,12 @@ def chat():
     except OllamaUnavailableError as error:
         return jsonify({"error": str(error)}), 503
     except Exception as error:
-        return jsonify({"error": f"No fue posible responder: {error}"}), 500
+        current_app.logger.error("Chat failed: %s", type(error).__name__)
+        return jsonify({"error": "No fue posible responder"}), 500
 
 
 @chatbot_bp.route("/chat/health", methods=["GET"])
 def chat_health():
-    if not verificar_api_key():
-        return jsonify({"error": "Acceso no autorizado"}), 403
-
     health = rag_service.health()
     health.update({
         "multiagent_enabled": multiagent_enabled(),

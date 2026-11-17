@@ -2,7 +2,13 @@ package com.example.detector_url
 
 import android.content.Intent
 import android.app.UiModeManager
+import android.net.Uri
 import android.os.Build
+import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import java.io.File
+import java.io.IOException
 import android.os.Bundle
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -21,8 +27,17 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        val messenger = flutterEngine.dartExecutor.binaryMessenger
+        MethodChannel(messenger, "detector_url/ocr").setMethodCallHandler { call, result ->
+            if (call.method != "recognize") {
+                result.notImplemented()
+            } else {
+                recognizeText(call.arguments as? String, result)
+            }
+        }
+
         pendingSharedText = extractSharedText(intent) ?: pendingSharedText
-        channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+        channel = MethodChannel(messenger, channelName)
         channel?.setMethodCallHandler { call, result ->
             when (call.method) {
                 "getInitialSharedText" -> {
@@ -55,6 +70,30 @@ class MainActivity : FlutterActivity() {
 
             override fun notImplemented() = Unit
         })
+    }
+
+    private fun recognizeText(path: String?, result: MethodChannel.Result) {
+        if (path.isNullOrBlank()) {
+            result.error("image_invalid", "La imagen no está disponible.", null)
+            return
+        }
+
+        val image = try {
+            InputImage.fromFilePath(this, Uri.fromFile(File(path)))
+        } catch (_: IOException) {
+            result.error("image_invalid", "No se pudo abrir la imagen.", null)
+            return
+        }
+
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        recognizer.process(image).addOnCompleteListener { task ->
+            recognizer.close()
+            if (task.isSuccessful) {
+                result.success(task.result.text)
+            } else {
+                result.error("ocr_failed", "No se pudo leer la imagen.", null)
+            }
+        }
     }
 
     private fun extractSharedText(intent: Intent?): String? {

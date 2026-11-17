@@ -1,0 +1,8 @@
+CREATE TABLE IF NOT EXISTS predictions (
+    id BIGSERIAL PRIMARY KEY,
+    url TEXT NOT NULL,
+    label VARCHAR(32) NOT NULL,
+    probability DOUBLE PRECISION NOT NULL,
+    explanation JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

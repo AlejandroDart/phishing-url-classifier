@@ -439,6 +439,29 @@ class RagService:
         ]
         return non_embedding[0] if non_embedding else models[0]
 
+    def _answer_from_knowledge(self, question, match):
+        _, _, body = match["text"].partition("\n")
+        paragraphs = [
+            paragraph.strip()
+            for paragraph in re.split(r"\n\s*\n", body)
+            if paragraph.strip()
+        ]
+        if paragraphs:
+            with self._lock:
+                vectorizer = self._vectorizer
+            scores = cosine_similarity(
+                vectorizer.transform([question]), vectorizer.transform(paragraphs)
+            )[0]
+            excerpt = self._brief_answer(paragraphs[int(scores.argmax())])
+        else:
+            excerpt = "Puedo orientarte sobre phishing y el uso de LinkShield AI."
+        return {
+            "answer": excerpt,
+            "sources": [match["title"]],
+            "model": None,
+            "generation_mode": "knowledge_excerpt",
+        }
+
     def answer(self, question, history=None):
         social_response = self._social_response(question, history=history)
         if social_response:
@@ -461,7 +484,6 @@ class RagService:
                 "model": None,
             }
 
-        model = self._select_model()
         context = "\n\n---\n\n".join(match["text"] for match in matches)
         safe_history = [
             {"role": item["role"], "content": item["content"]}
@@ -485,6 +507,7 @@ class RagService:
         )
 
         try:
+            model = self._select_model()
             response = requests.post(
                 f"{self.ollama_url}/api/chat",
                 json={
@@ -507,13 +530,11 @@ class RagService:
             )
             response.raise_for_status()
             answer = response.json().get("message", {}).get("content", "").strip()
-        except requests.RequestException as error:
-            raise OllamaUnavailableError(
-                "Ollama no pudo generar la respuesta. Revisa que siga activo."
-            ) from error
+        except (OllamaUnavailableError, requests.RequestException, ValueError):
+            return self._answer_from_knowledge(question, matches[0])
 
         if not answer:
-            raise OllamaUnavailableError("Ollama devolvio una respuesta vacia.")
+            return self._answer_from_knowledge(question, matches[0])
 
         answer = self._brief_answer(answer)
 
