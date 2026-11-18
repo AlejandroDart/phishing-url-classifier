@@ -20,6 +20,12 @@ Los valores, signos y magnitudes se renderizan de forma determinista para evitar
 que el modelo de lenguaje altere la explicación. Ollama y RAG solo pueden aportar
 una recomendación preventiva que pasa validaciones antes de incorporarse.
 
+## Criterios de diseño
+
+La clasificación técnica procede de `PredictionService`. El modelo de lenguaje explica el resultado y aporta conocimiento preventivo, sin modificar la probabilidad, la etiqueta ni los factores calculados por el detector. El análisis desde Anita reutiliza el mismo servicio que el escáner principal.
+
+Las consultas posteriores recuperan el contexto del análisis de la conversación. Un resultado histórico conserva su fecha y contexto; una solicitud de nuevo análisis debe invocar nuevamente el detector.
+
 ## Memoria y trazabilidad
 
 La memoria corta usa `conversation_id`, TTL de dos horas y un máximo de 500

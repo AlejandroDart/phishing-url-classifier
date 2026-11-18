@@ -58,6 +58,8 @@ lib/
 └── widgets/     # Componentes de interfaz
 ```
 
+La [guía de instalación](../INSTALACION.md) reúne la configuración del servidor, la base de datos y el cliente.
+
 ## Requisitos
 
 - Flutter 3.38 o superior y Dart `^3.10.0`.
@@ -82,7 +84,7 @@ Sin configuración se usa `http://127.0.0.1:5000` y no se incluye ninguna clave.
 ### Preparar dependencias
 
 ```powershell
-cd C:\phishing-url-classifier\phishing-url-app
+cd phishing-url-app
 flutter pub get
 ```
 
@@ -168,7 +170,7 @@ flutter test
 
 La suite cubre, entre otros componentes, el repositorio web, las opciones de modelo, la información técnica y la extracción robusta de URLs mediante OCR.
 
-El 17 de noviembre de 2026, Alejandro Mayró Lena confirmó que ejecutó y probó la aplicación en sus dispositivos Android e iOS, con funcionamiento satisfactorio en ambos. La comprobación corresponde a los dispositivos probados por el autor. La auditoría de accesibilidad web conserva su revisión específica.
+El 17 de noviembre de 2026, Alejandro Mayró Lena confirmó que ejecutó y probó la aplicación en sus dispositivos Android e iOS, con funcionamiento satisfactorio en ambos. La auditoría de accesibilidad web forma parte de las actividades de cierre.
 
 ## Compilación
 

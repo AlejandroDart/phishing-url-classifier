@@ -57,6 +57,8 @@ flowchart LR
 | `phishing-url-api` | Inferencia, explicabilidad, persistencia y sistema multiagente | [API REST](phishing-url-api/README.md) |
 | `phishing-url-app` | Aplicación Flutter para Android, iOS y navegador | [Aplicación](phishing-url-app/README.md) |
 
+La [documentación de Anita](phishing-url-api/MULTIAGENT.md) detalla los agentes, la memoria conversacional, la persistencia y las trazas.
+
 ## Modelo recomendado
 
 El modelo predeterminado es **LinkShield Hybrid Ensemble**. Integra cinco ramas y utiliza una regresión logística como meta-clasificador:
@@ -79,7 +81,7 @@ La matriz de confusión sobre 2,286 observaciones contiene 1,089 verdaderos nega
 
 ## Inicio rápido
 
-Para retomar el desarrollo en otro equipo o iniciar un nuevo chat, consulta el [README de continuidad](README-CONTINUIDAD.md).
+La [guía de instalación y ejecución](INSTALACION.md) describe la configuración de la API, PostgreSQL, Flutter y las pruebas por plataforma.
 
 ### Requisitos
 
@@ -90,51 +92,54 @@ Para retomar el desarrollo en otro equipo o iniciar un nuevo chat, consulta el [
 
 ### 1. API
 
-```powershell
-cd C:\phishing-url-classifier\phishing-url-api
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
+Desde la raíz del repositorio, en macOS o Linux:
+
+```bash
+cd phishing-url-api
+python3.12 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
-python app.py
 ```
 
-La API queda disponible por defecto en `http://127.0.0.1:5000`.
+Configura el archivo `.env` con una `API_KEY` de desarrollo y los parámetros de PostgreSQL según la [guía de instalación](INSTALACION.md). Con el entorno virtual activo, inicia el servicio:
+
+```bash
+python -m flask --app app run --host 127.0.0.1 --port 5058 --no-reload
+```
+
+La API queda disponible en `http://127.0.0.1:5058`. La guía incluye los comandos de preparación para Windows PowerShell.
 
 ### 2. Aplicación Flutter
 
-```powershell
-cd C:\phishing-url-classifier\phishing-url-app
+Desde la raíz del repositorio:
+
+```bash
+cd phishing-url-app
 flutter pub get
-flutter run -d chrome `
-  --dart-define=API_BASE_URL=http://127.0.0.1:5000 `
-  --dart-define=API_KEY=REEMPLAZAR_CON_UNA_CLAVE_LOCAL
 ```
 
-Para exponer la versión web en la red local:
+Configura `.vscode/api.local.json` con `API_BASE_URL` y la misma `API_KEY` del servidor. El archivo de configuración local está excluido del repositorio.
 
-```powershell
-flutter run -d web-server --release `
-  --web-hostname=0.0.0.0 --web-port=8005 `
-  --dart-define=API_BASE_URL=http://IP_DEL_EQUIPO:5000 `
-  --dart-define=API_KEY=REEMPLAZAR_CON_UNA_CLAVE_LOCAL
+```bash
+flutter run -d chrome --dart-define-from-file=.vscode/api.local.json
 ```
 
-Consulta las instrucciones completas en los README de cada módulo.
+Para Android e iOS, selecciona el identificador del dispositivo con `flutter devices` y sigue la [documentación de la aplicación](phishing-url-app/README.md). La [guía de instalación](INSTALACION.md) detalla la conexión móvil, los orígenes web permitidos y la compilación de la APK de pruebas.
 
 ## Pruebas
 
-```powershell
+```bash
 # Backend
 cd phishing-url-api
 python -m pytest -q
 
 # Aplicación
-cd ..\phishing-url-app
+cd ../phishing-url-app
 flutter analyze
 flutter test
 ```
 
-La validación de la semana 7 registró **105 pruebas backend**, **15 pruebas Flutter** y una prueba de persistencia IndexedDB ejecutada en Chrome. Se ejecutaron además 14 comprobaciones de aceptación técnica con cinco perfiles de prueba. En Chrome se verificó el flujo de selección de imagen, extracción OCR y análisis mediante la API. El 17 de noviembre de 2026, Alejandro Mayró Lena confirmó la ejecución y el funcionamiento de la aplicación en sus dispositivos Android e iOS. Esta comprobación funcional del autor complementa las pruebas automatizadas y la verificación en Chrome; no sustituye la auditoría específica de accesibilidad web. Los requisitos de cada plataforma están en la [guía de la aplicación](phishing-url-app/README.md).
+La verificación del segundo avance registró **105 pruebas backend**, **15 pruebas Flutter** y una prueba de persistencia IndexedDB ejecutada en Chrome. Se ejecutaron además 14 comprobaciones de aceptación técnica con cinco perfiles de prueba. En Chrome se verificó el flujo de selección de imagen, extracción OCR y análisis mediante la API. El 17 de noviembre de 2026, Alejandro Mayró Lena confirmó la ejecución y el funcionamiento de la aplicación en sus dispositivos Android e iOS. La auditoría de accesibilidad web forma parte de las actividades de cierre. Los requisitos de cada plataforma están en la [guía de la aplicación](phishing-url-app/README.md).
 
 ## Privacidad y seguridad
 
@@ -150,7 +155,7 @@ Proyecto académico y experimental en desarrollo. La arquitectura, los modelos y
 
 ## Planificación y seguimiento
 
-La continuidad de **LinkShield AI** se gestiona en GitHub Projects, donde se organizan las actividades, los hitos técnicos y académicos, las fechas y los estados de avance.
+La planificación y el seguimiento de **LinkShield AI** se gestionan en GitHub Projects, donde se organizan las actividades, los hitos técnicos y académicos, las fechas y los estados de avance.
 
 **[Ver el cronograma general (Gantt)](https://github.com/users/AlejandroDart/projects/1/views/5)**
 

@@ -6,7 +6,7 @@
     <img src="https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white" alt="Python">
     <img src="https://img.shields.io/badge/Flask-REST-000000?logo=flask&logoColor=white" alt="Flask">
     <img src="https://img.shields.io/badge/PostgreSQL-Opcional-4169E1?logo=postgresql&logoColor=white" alt="PostgreSQL">
-    <img src="https://img.shields.io/badge/Tests-79%20aprobados-159957" alt="79 tests aprobados">
+    <img src="https://img.shields.io/badge/Tests-105%20aprobados-159957" alt="105 tests aprobados">
   </p>
 </div>
 
@@ -44,6 +44,8 @@ phishing-url-api/
 
 ## Sistema multiagente
 
+Consulta los [contratos y mecanismos de memoria de Anita](MULTIAGENT.md).
+
 ```mermaid
 flowchart LR
     Q["Consulta del usuario"] --> C["Agente coordinador"]
@@ -61,12 +63,14 @@ Anita conserva el contexto del último análisis de la conversación para respon
 ## Instalación
 
 ```powershell
-cd C:\phishing-url-classifier\phishing-url-api
+cd phishing-url-api
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
+
+Los comandos anteriores utilizan PowerShell desde la raíz del repositorio. La [guía de instalación](../INSTALACION.md) incluye la preparación del entorno en macOS y Linux.
 
 ## Variables de entorno
 
@@ -193,18 +197,18 @@ El perfil cambia la etiqueta operativa, no la probabilidad calculada.
 python -m pytest -q
 ```
 
-La validación más reciente registró **79 pruebas aprobadas y 0 fallos**. La suite cubre rutas, validación, registro de modelos, predicción, sensibilidad, explicabilidad, memoria conversacional y coordinación multiagente.
+La verificación del segundo avance registró **105 pruebas aprobadas y 0 fallos**. La suite cubre rutas, validación, registro de modelos, predicción, sensibilidad, explicabilidad, memoria conversacional y coordinación multiagente.
 
 ## Seguridad y despliegue
 
 - Define `API_KEY` en el servidor. Predicción, catálogo, Anita y estadísticas requieren `X-API-KEY`. Sin una clave de servidor configurada, esas rutas rechazan el acceso. `GET /` queda disponible para comprobar el servicio.
-- `CORS_ALLOWED_ORIGINS` acepta una lista de orígenes exactos separados por comas. Si se omite, permite el navegador local en `localhost` o `127.0.0.1`. Para abrir Flutter Web en otro equipo, configura explícitamente el origen web, incluido el puerto.
+- `CORS_ALLOWED_ORIGINS` acepta una lista de orígenes exactos separados por comas. Si se omite, permite el navegador local en `localhost` o `127.0.0.1`. Para servir Flutter Web en una red local, configura explícitamente el origen del cliente, incluido el puerto.
 - Configura `PREDICTION_NETWORK_FEATURES=false` para medir o demostrar con URLs sintéticas sin consultar páginas, WHOIS ni servicios externos. El resultado usa señales de la URL y valores de respaldo para las señales externas.
 
 - No confirmes `.env`, claves, contraseñas ni logs con información sensible.
 - Usa HTTPS y un servidor WSGI en despliegues reales.
 - No confíes en una clave estática incluida en un cliente web público.
-- Protege de forma uniforme los endpoints estadísticos antes de exponerlos.
+- Los endpoints estadísticos utilizan la misma autorización que las demás rutas protegidas.
 - Limita tamaño de solicitudes, aplica control de frecuencia y registra errores sin datos sensibles.
 - Ejecuta los modelos con permisos mínimos sobre el sistema de archivos.
 

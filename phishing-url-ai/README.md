@@ -162,7 +162,7 @@ El registro unificado que consume la API se genera a partir de estos manifiestos
 6. Ejecuta las pruebas de la API antes de sustituir artefactos en producción.
 
 ```powershell
-cd C:\phishing-url-classifier\phishing-url-ai
+cd phishing-url-ai
 python scripts\sync_unified_model_registry.py
 ```
 
