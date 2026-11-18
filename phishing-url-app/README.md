@@ -154,7 +154,7 @@ La sensibilidad modifica el umbral usado para asignar la etiqueta, pero conserva
 
 ## Persistencia y privacidad
 
-- **Android:** SQLite mediante `sqflite`.
+- **Android e iOS:** SQLite mediante `sqflite`.
 - **Web:** IndexedDB mediante `idb_shim`.
 - **Servidor:** solo se utiliza cuando el usuario habilita almacenamiento global.
 - Las preferencias de tema, modelo y sensibilidad se conservan con `shared_preferences`.
@@ -167,6 +167,8 @@ flutter test
 ```
 
 La suite cubre, entre otros componentes, el repositorio web, las opciones de modelo, la información técnica y la extracción robusta de URLs mediante OCR.
+
+El 17 de noviembre de 2026, Alejandro Mayró Lena confirmó que ejecutó y probó la aplicación en sus dispositivos Android e iOS, con funcionamiento satisfactorio en ambos. La comprobación corresponde a los dispositivos probados por el autor. La auditoría de accesibilidad web conserva su revisión específica.
 
 ## Compilación
 

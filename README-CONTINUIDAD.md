@@ -33,7 +33,7 @@
 
 PostgreSQL se configura aparte para estadísticas y persistencia global. El cliente envía la clave también para las estadísticas. Si sirves Flutter Web por la red local, configura `CORS_ALLOWED_ORIGINS` en Flask con el origen exacto del sitio. Android nativo no usa CORS. Si el teléfono llega a la API pero no carga los modelos, revisa que ambas claves coincidan. Si cambias la IP o la clave, detén y vuelve a ejecutar la app. Android `release` requiere HTTPS.
 
-Para iOS y web, sigue la [guía por plataforma](phishing-url-app/README.md). El corte de semana 7 incluye OCR en Chrome, el objetivo mínimo de iOS 15.0 y código de OCR nativo para iOS y Android. La compilación y prueba de esos cambios nativos requiere Xcode o el SDK de Android, según la plataforma.
+Para iOS y web, sigue la [guía por plataforma](phishing-url-app/README.md). La versión de semana 7 incluye OCR en Chrome, el objetivo mínimo de iOS 15.0 y OCR nativo para iOS y Android. El autor confirmó el funcionamiento de la aplicación en sus dispositivos Android e iOS el 17 de noviembre de 2026. Para nuevas compilaciones se requiere Xcode o el SDK de Android, según la plataforma.
 
 ## Retomar en un chat nuevo
 

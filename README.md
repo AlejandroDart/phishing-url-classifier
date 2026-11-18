@@ -134,7 +134,7 @@ flutter analyze
 flutter test
 ```
 
-La validación de la semana 7 registró **105 pruebas backend**, **15 pruebas Flutter** y una prueba de persistencia IndexedDB ejecutada en Chrome. Se ejecutaron además 14 comprobaciones de aceptación técnica con cinco perfiles de prueba. En Chrome se verificó el flujo de selección de imagen, extracción OCR y análisis mediante la API. La revisión de los cambios nativos de cámara y OCR sigue abierta para Android e iOS. Los requisitos de cada plataforma están en la [guía de la aplicación](phishing-url-app/README.md).
+La validación de la semana 7 registró **105 pruebas backend**, **15 pruebas Flutter** y una prueba de persistencia IndexedDB ejecutada en Chrome. Se ejecutaron además 14 comprobaciones de aceptación técnica con cinco perfiles de prueba. En Chrome se verificó el flujo de selección de imagen, extracción OCR y análisis mediante la API. El 17 de noviembre de 2026, Alejandro Mayró Lena confirmó la ejecución y el funcionamiento de la aplicación en sus dispositivos Android e iOS. Esta comprobación funcional del autor complementa las pruebas automatizadas y la verificación en Chrome; no sustituye la auditoría específica de accesibilidad web. Los requisitos de cada plataforma están en la [guía de la aplicación](phishing-url-app/README.md).
 
 ## Privacidad y seguridad
 
@@ -167,7 +167,7 @@ El tablero permite revisar:
 | Fecha | Hito | Entregable previsto |
 |---|---|---|
 | 27 de octubre | Primer informe y presentación, 70 % | MVP funcional, evidencia de pruebas y planificación actualizada. |
-| 17 de noviembre | Segundo informe de avance, 90 % | Consolidación de la aplicación y resultados de rendimiento, seguridad y validación con usuarios. |
+| 17 de noviembre | Segundo informe de avance, 90 % | Consolidación de la aplicación y resultados de rendimiento, seguridad y aceptación técnica, con prueba funcional en Android e iOS. |
 | 8 de diciembre | Entrega final, 100 % | Solución y documentación finales, con resultados y evidencias del alcance aprobado. |
 | 29 de diciembre | Presentación ante comisión | Defensa del proyecto, demostración y respaldo de resultados. |
 
